@@ -15,6 +15,8 @@ val keystoreProps = Properties().apply {
 val hasKeystore = keystoreProps.getProperty("storeFile") != null
 
 val appVersion = "0.1.0"
+// Shown in the app and on the release; the tag is v<appVersion><suffix>, e.g. v0.1.0-beta.1.
+val appVersionSuffix = "-beta.1"
 
 android {
     namespace = "io.github.aleixrodriala.quadern"
@@ -28,7 +30,7 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInt()
         // 0.1.0 -> 100, 1.2.3 -> 10203
         versionCode = appVersion.split('.').map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
-        versionName = appVersion
+        versionName = appVersion + appVersionSuffix
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -48,8 +50,9 @@ android {
             applicationIdSuffix = ".debug"
         }
         release {
-            // Phones only; x86_64 exists for the emulator in debug builds.
-            ndk { abiFilters += "arm64-v8a" }
+            // Phones only; x86_64 exists for the emulator in debug builds. -PreleaseAbis=x86_64
+            // builds a release for the emulator, to test R8 there.
+            ndk { abiFilters += (findProperty("releaseAbis") as String? ?: "arm64-v8a").split(",") }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

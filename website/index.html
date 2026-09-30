@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quadern · Talk. Every word is kept.</title>
+<meta name="description" content="A free, open-source voice-notes app for Android. Talk, and get an exact transcript, a short title, a plain summary and tags, with the ChatGPT plan you already have or with Whisper on your phone, offline.">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Quadern · Talk. Every word is kept.">
+<meta property="og:description" content="A voice notebook for Android. Accurate with your ChatGPT plan, or fully private on your phone. Free and open source.">
+<meta property="og:image" content="https://aleixrodriala.github.io/quadern/assets/og.png">
+<meta property="og:url" content="https://aleixrodriala.github.io/quadern/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0c0d" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="assets/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+/* Fonts are served from this site: no request to Google. */
+/* Layout: one narrow sheet, like a note, with the phone beside the promise; the only colour is the recording light. */
+:root {
+  --paper: #ffffff;
+  --paper-2: #f4f4f5;
+  --ink: #111113;
+  --ink-2: #3f3f46;
+  --muted: #71717a;
+  --line: #e4e4e7;
+  --rec: #e5484d;
+  --bezel: #111113;
+  --screen: #ffffff;
+  --display: "Schibsted Grotesk", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --body: "Schibsted Grotesk", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --measure: 38rem;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0c0c0d; --paper-2: #18181b; --ink: #f4f4f5; --ink-2: #d4d4d8;
+    --muted: #a1a1aa; --line: #27272a; --rec: #f0676b; --bezel: #26262a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0c0c0d; --paper-2: #18181b; --ink: #f4f4f5; --ink-2: #d4d4d8;
+  --muted: #a1a1aa; --line: #27272a; --rec: #f0676b; --bezel: #26262a; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--body); -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 68rem; margin: 0 auto; padding-inline: clamp(1rem, 4vw, 2.5rem); }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1.25rem; }
+.mark { display: inline-flex; align-items: baseline; font: 800 1.5rem/1 var(--display); letter-spacing: -0.03em; text-decoration: none; }
+.mark .dot {
+  display: inline-block; width: 0.5em; height: 0.5em; margin-inline: 0.12em 0; border-radius: 50%;
+  background: var(--rec); transform: translateY(-0.02em);
+  animation: rec 2.4s ease-in-out infinite;
+}
+@keyframes rec { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.top nav { display: flex; gap: 1.25rem; font-size: 0.95rem; }
+.top nav a { text-decoration: none; color: var(--ink-2); }
+.top nav a:hover { color: var(--ink); }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: clamp(2rem, 6vw, 5rem); align-items: center; padding-block: clamp(2rem, 6vw, 4.5rem) clamp(3rem, 7vw, 5.5rem); }
+.hero h1 { font-weight: 800; font-size: clamp(2.6rem, 6.4vw, 4.6rem); line-height: 0.98; letter-spacing: -0.035em; }
+.hero .lede { margin-top: 1.5rem; max-width: 31rem; font-size: 1.2rem; line-height: 1.5; color: var(--ink-2); }
+.meaning { margin-top: 1.1rem; font-size: 0.95rem; color: var(--muted); }
+.meaning i { color: var(--ink-2); }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
+.btn { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1.3rem; border-radius: 999px; font-weight: 600; text-decoration: none; border: 1px solid var(--ink); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover { opacity: 0.88; }
+.btn.ghost:hover { background: var(--paper-2); }
+.btn svg { width: 1.1em; height: 1.1em; }
+.metaline { margin-top: 1.1rem; font-size: 0.82rem; color: var(--muted); }
+
+.phone {
+  justify-self: center; width: min(20rem, 100%); aspect-ratio: 1080 / 2424; max-width: 100%;
+  border-radius: 2.4rem; padding: 0.5rem; background: var(--bezel);
+  box-shadow: 0 30px 60px -30px rgba(17, 17, 19, 0.45);
+}
+.phone video, .phone img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 1.95rem; background: var(--screen); }
+.caption { margin-top: 0.9rem; text-align: center; font-size: 0.82rem; color: var(--muted); }
+
+/* Sections */
+section { padding-block: clamp(3rem, 7vw, 5rem); border-top: 1px solid var(--line); }
+.label { font: 500 0.78rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section h2 { margin-top: 0.9rem; font-weight: 700; font-size: clamp(1.8rem, 3.6vw, 2.6rem); line-height: 1.08; letter-spacing: -0.025em; max-width: 24ch; }
+section .intro { margin-top: 1rem; max-width: var(--measure); color: var(--ink-2); }
+
+/* Steps: a real sequence */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin: 2.2rem 0 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; gap: 0.5rem; }
+.steps li::before { content: counter(s); font: 500 0.85rem/1 var(--mono); color: var(--muted); }
+.steps h3 { font-size: 1.2rem; font-weight: 700; }
+.steps p { color: var(--ink-2); font-size: 1rem; }
+
+/* Kept: four promises, each with the recording dot as its bullet */
+.care { margin-top: 2.2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.8rem 3rem; max-width: 56rem; }
+.care div { display: grid; gap: 0.35rem; align-content: start; padding-left: 1.4rem; position: relative; }
+.care div::before { content: ""; position: absolute; left: 0; top: 0.5rem; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--rec); }
+.care h3 { font-size: 1.1rem; font-weight: 700; }
+.care p { color: var(--ink-2); font-size: 1rem; }
+.small { margin-top: 1.2rem; font-size: 0.9rem; color: var(--muted); max-width: var(--measure); }
+
+/* Languages */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+.figure-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.shot { width: 100%; height: auto; max-width: 100%; border-radius: 1.4rem; border: 1px solid var(--line); display: block; }
+.wer { margin-top: 1.8rem; display: grid; gap: 0.6rem; max-width: 26rem; }
+.wer .bar { display: grid; grid-template-columns: 11.5rem minmax(0, 1fr) 3.5rem; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
+.wer .track { height: 0.55rem; background: var(--paper-2); border-radius: 99px; overflow: hidden; }
+.wer .fill { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
+.wer .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Screens strip */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 2.2rem; }
+.strip figure { margin: 0; display: grid; gap: 0.6rem; }
+.strip figcaption { font-size: 0.85rem; color: var(--muted); }
+
+/* Who listens: three equal cards, each with its honest strength */
+.ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 2.2rem; }
+.way { border: 1px solid var(--line); border-radius: 1.25rem; padding: 1.4rem 1.4rem 1.2rem; display: grid; gap: 0.9rem; align-content: start; min-width: 0; }
+.way.private { border-color: var(--ink); }
+.way .tag { justify-self: start; font: 500 0.72rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); background: var(--paper-2); padding: 0.4rem 0.55rem; border-radius: 0.4rem; }
+.way.private .tag { background: var(--ink); color: var(--paper); }
+.way h3 { font-size: 1.3rem; font-weight: 700; }
+.way > p { color: var(--ink-2); font-size: 0.98rem; }
+.way dl { margin: 0.2rem 0 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.45rem 0.9rem; font-size: 0.9rem; }
+.way dt { color: var(--muted); }
+.way dd { margin: 0; }
+.beta { display: inline-block; font: 500 0.7rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--ink); border-radius: 99px; padding: 0.3rem 0.5rem; margin-left: 0.6rem; transform: translateY(-0.25em); }
+
+/* Table */
+.table-wrap { overflow-x: auto; margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: 0.97rem; }
+th, td { text-align: left; padding: 0.85rem 1rem 0.85rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; }
+td:first-child { color: var(--muted); font-size: 0.9rem; }
+
+/* Principles */
+.principles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6rem 3rem; margin-top: 2.2rem; max-width: 56rem; }
+.principles div { display: grid; gap: 0.35rem; align-content: start; }
+.principles h3 { font-size: 1.1rem; font-weight: 700; }
+.principles p { color: var(--ink-2); font-size: 1rem; }
+.wont { margin-top: 2.4rem; max-width: var(--measure); color: var(--ink-2); }
+.wont b { color: var(--ink); }
+
+/* Download */
+.dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; margin-top: 2rem; }
+.dl ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.6rem; color: var(--ink-2); }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--paper-2); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+/* FAQ */
+.faq { margin-top: 1.6rem; max-width: 46rem; }
+details { border-bottom: 1px solid var(--line); padding-block: 1rem; }
+summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-family: var(--mono); color: var(--muted); }
+details[open] summary::after { content: "–"; }
+details p { margin-top: 0.7rem; color: var(--ink-2); max-width: var(--measure); }
+
+/* Maker */
+.maker { max-width: 36rem; }
+.maker blockquote { margin: 1.4rem 0 0; font-size: 1.3rem; line-height: 1.5; letter-spacing: -0.01em; }
+.maker cite { display: block; margin-top: 1rem; font-style: normal; color: var(--muted); font-size: 0.95rem; }
+
+footer { border-top: 1px solid var(--line); padding-block: 2.5rem 3rem; display: grid; gap: 1rem; font-size: 0.88rem; color: var(--muted); }
+footer .sign { font: 700 1.3rem/1.2 var(--display); color: var(--ink); letter-spacing: -0.02em; }
+footer nav { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+footer nav a { color: var(--ink-2); }
+
+@media (max-width: 52rem) {
+  .hero, .split, .dl { grid-template-columns: minmax(0, 1fr); }
+  .top nav { display: none; }
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps, .principles, .care, .ways { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark .dot { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="#" aria-label="Quadern">quadern<span class="dot" aria-hidden="true"></span><span class="beta">beta</span></a>
+    <nav aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#who">Private mode</a>
+      <a href="#kept">Nothing lost</a>
+      <a href="#principles">Principles</a>
+      <a href="#download">Download</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1>Talk. Every word is kept.</h1>
+        <p class="lede">A voice-notes app for Android. Tap once and talk; you get an exact transcript, a short title, a summary in plain words and a few tags. Transcribe with the ChatGPT plan you already have, or keep everything on your phone with Whisper, offline.</p>
+        <p class="meaning"><i>Quadern</i> is Catalan for notebook: the small one you carry everywhere.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/aleixrodriala/quadern/releases/latest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>
+            Download for Android
+          </a>
+          <a class="btn ghost" href="https://github.com/aleixrodriala/quadern">Source on GitHub</a>
+        </div>
+        <p class="metaline mono">v0.1 beta · Android 10+ · free and open source (MIT) · no account · works offline</p>
+      </div>
+      <div>
+        <div class="phone">
+          <video src="assets/flow-light-fast.mp4" poster="assets/flow-light-fast-poster.jpg" autoplay muted loop playsinline aria-label="A real recording on a Pixel 9: the waveform follows the voice, then the note appears, gets its title, and opens with its summary and tags."></video>
+        </div>
+        <p class="caption">A real note on a Pixel 9. The talking is sped up; the transcript and summary arrive in real time.</p>
+      </div>
+    </div>
+
+    <section id="how">
+      <p class="label">How it goes</p>
+      <h2>One choice, then just talk.</h2>
+      <ol class="steps">
+        <li><h3>Choose who listens</h3><p>ChatGPT, for the best accuracy on the plan you already have. Or Whisper on your phone, so your voice never leaves it.</p></li>
+        <li><h3>Talk</h3><p>Screen off, phone in your pocket, twenty minutes if you like. Long notes are transcribed while you are still talking.</p></li>
+        <li><h3>Read it back</h3><p>A transcript, a title, a short summary and tags, in the language you spoke. Search finds any word.</p></li>
+      </ol>
+    </section>
+
+    <section id="kept">
+      <p class="label">Nothing gets lost</p>
+      <h2>Built so nothing you say is lost.</h2>
+      <p class="intro">A voice note is often something you can’t say twice. So most of the care in Quadern goes into one promise: once you’ve said it, it’s kept.</p>
+      <div class="care">
+        <div><h3>Saved as you speak</h3><p>Audio goes to disk while you talk, in a format that stays playable even if it’s cut off mid-word.</p></div>
+        <div><h3>Ready for the worst moment</h3><p>If Android closes the app, the phone restarts or the battery dies, you keep everything up to the last few seconds, as a normal note.</p></div>
+        <div><h3>Patient with the network</h3><p>No signal? Notes wait and transcribe when it’s back. Long recordings go in pieces, so one bad connection never costs the whole note.</p></div>
+        <div><h3>Never locked in</h3><p>Your audio stays on your phone. If a service stops working, choose another and transcribe again.</p></div>
+      </div>
+      <p class="small">We test each of these on real phones by closing the app, restarting the phone and pulling the power in the middle of a sentence.</p>
+    </section>
+
+    <section id="languages">
+      <div class="split">
+        <div>
+          <p class="label">Your language, as you speak it</p>
+          <h2>For the way you actually talk.</h2>
+          <p class="intro">Mix languages in one sentence if that is how you talk. Titles, summaries and tags come back in the language you spoke.</p>
+          <div class="wer" role="img" aria-label="Word error rate on a Catalan test set: OpenAI gpt-transcribe 4.2 percent, Whisper large on a computer 5.9 percent, Whisper small 14.7 percent, Whisper base 27.9 percent. Lower is better.">
+            <div class="bar"><span>OpenAI gpt-transcribe</span><span class="track"><span class="fill" style="width:15%"></span></span><span class="v">4.2%</span></div>
+            <div class="bar"><span>Whisper large, on a computer</span><span class="track"><span class="fill" style="width:21.1%"></span></span><span class="v">5.9%</span></div>
+            <div class="bar"><span>Whisper small, on a phone</span><span class="track"><span class="fill" style="width:52.7%"></span></span><span class="v">14.7%</span></div>
+            <div class="bar"><span>Whisper base, on a phone</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="v">27.9%</span></div>
+          </div>
+          <p class="small">Word error rate on Softcatalà’s Catalan test, lower is better. It measured OpenAI’s public transcription model; OpenAI doesn’t say which model ChatGPT’s dictation uses.</p>
+        </div>
+        <div class="figure-pair">
+          <img class="shot" src="assets/screens/note-ca.webp" width="720" height="1616" alt="A note in Catalan: the escalivada recipe, with its summary and the tags Cuina and Receptes" loading="lazy">
+          <img class="shot" src="assets/screens/home.webp" width="720" height="1616" alt="The notes list, with notes in English, Catalan and Spanish" loading="lazy">
+        </div>
+      </div>
+    </section>
+
+    <section id="details">
+      <p class="label">The small things</p>
+      <h2>Cared for, down to the small things.</h2>
+      <div class="strip">
+        <figure><img class="shot" src="assets/screens/summarizing.webp" width="720" height="1616" alt="The summary being written, shown as a soft shimmer" loading="lazy"><figcaption>A soft shimmer while the summary is written.</figcaption></figure>
+        <figure><img class="shot" src="assets/screens/search.webp" width="720" height="1616" alt="Searching for tape finds two notes" loading="lazy"><figcaption>Search reads every word you said.</figcaption></figure>
+        <figure><img class="shot" src="assets/screens/welcome-light.webp" width="720" height="1616" alt="The first screen: choose ChatGPT (most accurate), on this phone (most private), or your own API key" loading="lazy"><figcaption>One honest choice on the first screen.</figcaption></figure>
+        <figure><img class="shot" src="assets/screens/note-dark.webp" width="720" height="1616" alt="A note in the dark theme" loading="lazy"><figcaption>Light, dark, or your wallpaper’s colours.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="who">
+      <p class="label">Who listens</p>
+      <h2>The most accurate, or the most private. You choose.</h2>
+      <p class="intro">You pick the first time you open Quadern, and can change it any time. Rather nothing left your phone? Choose Whisper on your phone: it works offline, and your voice goes nowhere.</p>
+      <div class="ways">
+        <div class="way">
+          <span class="tag">Most accurate</span>
+          <h3>ChatGPT</h3>
+          <p>The same voice-to-text as the ChatGPT app, through the plan you already pay for.</p>
+          <dl><dt>Cost</dt><dd>Included in your plan</dd><dt>Languages</dt><dd>Very accurate in many</dd><dt>Audio goes to</dt><dd>OpenAI</dd><dt>Internet</dt><dd>Needed</dd></dl>
+        </div>
+        <div class="way private">
+          <span class="tag">Most private</span>
+          <h3>On your phone</h3>
+          <p>Whisper runs on the phone itself. Pick a model from 44 MB to 574 MB; bigger is more accurate and slower.</p>
+          <dl><dt>Cost</dt><dd>Free</dd><dt>Languages</dt><dd>Best in English, weaker elsewhere</dd><dt>Audio goes to</dt><dd>Nowhere</dd><dt>Internet</dt><dd>Not needed</dd></dl>
+        </div>
+        <div class="way">
+          <span class="tag">Your own key</span>
+          <h3>A service you choose</h3>
+          <p>OpenAI, Groq, Mistral, Deepgram, ElevenLabs, Gemini, AssemblyAI, or your own server.</p>
+          <dl><dt>Cost</dt><dd>Pay per use</dd><dt>Languages</dt><dd>Depends on the service</dd><dt>Audio goes to</dt><dd>That service</dd><dt>Internet</dt><dd>Needed (or your own server)</dd></dl>
+        </div>
+      </div>
+      <p class="small">ChatGPT’s dictation isn’t a public API, so it could change or stop. Quadern says so before you sign in, and if it stops, your notes stay on your phone: switch to another way and press “Transcribe again”.</p>
+    </section>
+
+    <section id="principles">
+      <p class="label">Principles</p>
+      <h2>Small on purpose.</h2>
+      <div class="principles">
+        <div><h3>Every word is kept.</h3><p>Losing a recording is the one thing a voice-notes app must never do.</p></div>
+        <div><h3>One job.</h3><p>Record, transcribe, find. No chats, folders, templates, streaks or meeting bots.</p></div>
+        <div><h3>Plain words.</h3><p>Summaries are short prose in your language, not bullet points.</p></div>
+        <div><h3>Quiet.</h3><p>No badges, tips or notifications you didn’t ask for.</p></div>
+        <div><h3>Yours.</h3><p>Notes live on your phone. You choose who hears your audio.</p></div>
+        <div><h3>Honest.</h3><p>When something is unofficial, slow or limited, the app says so, and so does this page.</p></div>
+      </div>
+      <p class="wont"><b>What Quadern won’t do:</b> ask you to make an account, show ads, track you, sell you a subscription, or send your notes anywhere you didn’t choose.</p>
+    </section>
+
+    <section id="download">
+      <p class="label">Download</p>
+      <h2>Free, for any Android phone from the last six years.</h2>
+      <p class="intro">Quadern is in beta. It’s used every day, but it’s new: if something breaks or feels wrong, <a href="https://github.com/aleixrodriala/quadern/issues">tell us on GitHub</a>.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/aleixrodriala/quadern/releases/latest">Get the APK on GitHub</a>
+        <a class="btn ghost" href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/aleixrodriala/quadern">Add to Obtainium</a>
+      </div>
+      <div class="dl">
+        <ul>
+          <li>Android 10 or newer, arm64.</li>
+          <li>Updates arrive through Obtainium, or install a newer APK over the old one.</li>
+          <li>Not on Google Play for now: Play doesn’t allow apps that use a service beyond its public terms.</li>
+        </ul>
+        <ul>
+          <li>Every APK is built by GitHub Actions from the tagged source and signed with the same key.</li>
+          <li>Check a download with <code>gh attestation verify quadern.apk -R aleixrodriala/quadern</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="faq">
+      <p class="label">Questions</p>
+      <h2>Asked before.</h2>
+      <div class="faq">
+        <details><summary>Does it cost anything?</summary><p>No. With the ChatGPT option, transcription counts against your ChatGPT plan, the same as dictating in the ChatGPT app.</p></details>
+        <details><summary>Can I use it without ChatGPT?</summary><p>Yes. Choose “On this phone” and Whisper transcribes on the phone itself, offline; nothing leaves it. Or bring your own API key for OpenAI, Groq, Mistral and others.</p></details>
+        <details><summary>Is it made by OpenAI?</summary><p>No. Quadern is an independent project. ChatGPT is a trademark of OpenAI.</p></details>
+        <details><summary>What if the ChatGPT route stops working?</summary><p>Your notes and audio stay on your phone. Choose Whisper on your phone or an API key in Settings, then “Transcribe again”. If OpenAI ever asks, we can pause the ChatGPT route for everyone, and the app will tell you.</p></details>
+        <details><summary>Where do my notes go?</summary><p>Nowhere. They live on your phone. Audio goes only to the transcription service you chose; the transcript goes only to the service that writes summaries, which you can turn off.</p></details>
+        <details><summary>How is it different from Voicenotes, AudioPen or Recorder?</summary><p>Those are good apps. Voicenotes and AudioPen ask for their own account and a subscription of about $100 to $200 a year. Recorder only runs on Pixels, in fewer languages. Quadern needs no account, runs on any Android phone, and uses the transcription you already pay for.</p></details>
+        <details><summary>Was it made with AI?</summary><p>Much of the code was written with AI coding assistants. I decide what to build, review it, and test every release on real phones.</p></details>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p class="sign">Say it once. Keep it.</p>
+    <nav aria-label="Footer">
+      <a href="https://github.com/aleixrodriala/quadern">GitHub</a>
+      <a href="https://github.com/aleixrodriala/quadern/releases">Releases</a>
+      <a href="https://github.com/aleixrodriala/quadern/blob/main/PRIVACY.md">Privacy</a>
+      <a href="https://github.com/aleixrodriala/quadern/blob/main/LICENSE">MIT license</a>
+    </nav>
+    <p>Set in Schibsted Grotesk and IBM Plex Mono. No cookies, no analytics. GitHub Pages keeps visitors’ IP addresses in its logs for security. ChatGPT is a trademark of OpenAI; Quadern is not affiliated with OpenAI.</p>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<p>Quadern is a voice notebook. Tap once and talk; you get an exact transcript, a short title, a summary in plain words and a few tags, in the language you spoke.</p>
+
+<p><b>The most accurate, or the most private. You choose.</b></p>
+<ul>
+<li><b>ChatGPT</b>: sign in with the ChatGPT account you already have and use the same speech-to-text as the ChatGPT app. This is not an official OpenAI feature for other apps; the app explains this before you sign in.</li>
+<li><b>On this phone</b>: Whisper runs on the phone itself. Offline, and your voice never leaves it.</li>
+<li><b>Your own API key</b>: OpenAI, Groq, Mistral, Deepgram, ElevenLabs, Google Gemini, AssemblyAI, or your own server.</li>
+</ul>
+
+<p><b>Every word is kept.</b> Audio is saved to disk as you speak. If Android closes the app, the phone restarts or the battery dies, what you said is saved as a normal note. No signal? Notes wait and transcribe when it's back.</p>
+
+<p><b>Small on purpose.</b> Record, transcribe, find. No account, no ads, no tracking, no subscription. Notes live on your phone.</p>
+
+<p>Quadern is free and open source (MIT). It is not affiliated with OpenAI.</p>

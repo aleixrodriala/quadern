@@ -1,0 +1,5 @@
+First beta.
+- Record with one tap; keeps going with the screen off or the app closed.
+- Transcribe with ChatGPT, on the phone with Whisper, or with your own API key.
+- A title, a short summary and tags for every note, in the language you spoke.
+- Recordings survive app kills, restarts and power loss.
