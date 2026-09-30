@@ -14,6 +14,7 @@ import io.github.aleixrodriala.quadern.auth.SignInController
 import io.github.aleixrodriala.quadern.data.AppDatabase
 import io.github.aleixrodriala.quadern.data.NoteFiles
 import io.github.aleixrodriala.quadern.data.NotesRepository
+import io.github.aleixrodriala.quadern.data.PendingDeletes
 import io.github.aleixrodriala.quadern.data.SecretStore
 import io.github.aleixrodriala.quadern.data.ServiceStatus
 import io.github.aleixrodriala.quadern.data.SettingsRepository
@@ -54,6 +55,9 @@ class AppContainer(val context: Context) {
     val providers = ProviderFactory(auth, secrets, serviceStatus, whisperModels::createProvider)
     val summarizers: SummarizerFactory = SummarizerFactory(auth, providers, serviceStatus)
     val signIn = SignInController(context, auth) { appScope.launch { repository.retryBlocked() } }
+
+    /** Notes swiped off the list, deleted for good once Undo is no longer offered. */
+    val pendingDeletes = PendingDeletes(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)) { repository.delete(it) }
 
     /** Notes being converted from a shared audio file right now, with how far along (0..1). */
     val importing = MutableStateFlow<Map<String, Float>>(emptyMap())

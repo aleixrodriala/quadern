@@ -10,6 +10,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,6 +69,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,6 +89,7 @@ import io.github.aleixrodriala.quadern.ui.Tone
 import io.github.aleixrodriala.quadern.ui.components.CircleIconButton
 import io.github.aleixrodriala.quadern.ui.components.Dot
 import io.github.aleixrodriala.quadern.ui.components.Motion
+import io.github.aleixrodriala.quadern.ui.components.SwipeToDelete
 import io.github.aleixrodriala.quadern.ui.components.pressScale
 import io.github.aleixrodriala.quadern.ui.components.Motion.textSwap
 import io.github.aleixrodriala.quadern.ui.displayTitle
@@ -91,6 +103,7 @@ import io.github.aleixrodriala.quadern.util.formatListDate
 import io.github.aleixrodriala.quadern.util.formatShortDuration
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -129,6 +142,17 @@ fun HomeScreen(
     var searching by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val tags by remember { c.repository.observeTags() }.collectAsState(initial = emptyList())
+    val listState = rememberLazyListState()
+    val hidden by c.pendingDeletes.hidden.collectAsState()
+    val undoable by c.pendingDeletes.undoable.collectAsState()
+    // Which way each swiped note left, so Undo can bring it back from there.
+    val leftTo = remember { HashMap<String, Int>() }
+    val returning = remember { HashMap<String, Int>() }
+    val a11y = androidx.compose.ui.platform.LocalAccessibilityManager.current
+    // Longer for people who need it (Android's accessibility timeout setting).
+    val undoWindow = remember(a11y) {
+        a11y?.calculateRecommendedTimeoutMillis(UNDO_WINDOW_MS, containsText = true, containsControls = true) ?: UNDO_WINDOW_MS
+    }
     LaunchedEffect(searchRequest) {
         if (searchRequest != null) {
             searching = true
@@ -144,8 +168,31 @@ fun HomeScreen(
     val localModel = settings?.takeIf { it.provider == ProviderId.LOCAL }?.whisperModel
     val needsModel = localModel != null && localModel !in installedModels
 
+    val showSignIn = needsSignIn && !searching
+    val showModel = needsModel && !searching && localModel != null
+    val shown = remember(notes, hidden) { notes?.filter { it.id !in hidden } }
+    val latestShown by androidx.compose.runtime.rememberUpdatedState(shown)
+    // Notes come after the header, the tag row and any banners.
+    val firstNoteIndex = 2 + (if (showSignIn) 1 else 0) + (if (showModel) 1 else 0)
+    val undo: () -> Unit = {
+        c.pendingDeletes.undo()?.let { id ->
+            leftTo.remove(id)?.let { returning[id] = it }
+            // Scrolled away since: go to where it comes back.
+            scope.launch {
+                val at = kotlinx.coroutines.withTimeoutOrNull(1_000) {
+                    androidx.compose.runtime.snapshotFlow { latestShown?.indexOfFirst { it.id == id } ?: -1 }.first { it >= 0 }
+                } ?: return@launch
+                androidx.compose.runtime.withFrameNanos { }
+                if (listState.layoutInfo.visibleItemsInfo.none { it.key == id }) {
+                    listState.animateScrollToItem((firstNoteIndex + at - 1).coerceAtLeast(0))
+                }
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 160.dp),
         ) {
@@ -173,39 +220,55 @@ fun HomeScreen(
                     },
                 )
             }
-            if (needsSignIn && !searching) {
+            if (showSignIn) {
                 item(key = "signin") { Box(Modifier.animateItem()) { SignInBanner(onSignIn) } }
             }
-            if (needsModel && !searching && localModel != null) {
+            if (showModel && localModel != null) {
                 item(key = "model") {
                     Box(Modifier.animateItem()) {
                         ModelBanner(c.whisperModels.model(localModel), downloads[localModel]) { c.whisperModels.download(localModel) }
                     }
                 }
             }
-            val list = notes
+            val list = shown
             if (list != null && list.isEmpty()) {
-                item(key = "empty") { EmptyState(searching = q.isNotBlank() || tag != null) }
+                item(key = "empty") { Box(Modifier.animateItem()) { EmptyState(searching = q.isNotBlank() || tag != null) } }
             }
             if (list != null) {
                 items(list, key = { it.id }) { note ->
-                    NoteRow(
-                        note = note,
-                        isLive = live?.noteId == note.id,
-                        importProgress = importing[note.id],
-                        onClick = { if (live?.noteId == note.id) onOpenRecorder() else onOpenNote(note.id) },
-                        onStatusAction = {
-                            when (note.transcriptionStatus) {
-                                TranscriptionStatus.NEEDS_AUTH -> onSignIn()
-                                TranscriptionStatus.NEEDS_SETUP -> scope.launch {
-                                    val st = c.settings.current()
-                                    if (c.providers.isReady(st.provider, st)) c.repository.transcribe(note.id) else onOpenSettings()
+                    val isLive = live?.noteId == note.id
+                    val delete = { side: Int ->
+                        leftTo[note.id] = side
+                        c.pendingDeletes.remove(note.id, undoWindow)
+                    }
+                    SwipeToDelete(
+                        onDelete = delete,
+                        // The note being recorded ends from the recorder, not here.
+                        enabled = !isLive,
+                        enterFrom = remember { returning.remove(note.id) ?: 0 },
+                        // Swiped rows are already off the screen when they go: just close the gap.
+                        modifier = Modifier.animateItem(fadeOutSpec = tween(120)),
+                    ) {
+                        NoteRow(
+                            note = note,
+                            isLive = isLive,
+                            importProgress = importing[note.id],
+                            onClick = { if (live?.noteId == note.id) onOpenRecorder() else onOpenNote(note.id) },
+                            onStatusAction = {
+                                when (note.transcriptionStatus) {
+                                    TranscriptionStatus.NEEDS_AUTH -> onSignIn()
+                                    TranscriptionStatus.NEEDS_SETUP -> scope.launch {
+                                        val st = c.settings.current()
+                                        if (c.providers.isReady(st.provider, st)) c.repository.transcribe(note.id) else onOpenSettings()
+                                    }
+                                    else -> scope.launch { c.repository.transcribe(note.id) }
                                 }
-                                else -> scope.launch { c.repository.transcribe(note.id) }
-                            }
-                        },
-                        modifier = Modifier.animateItem(),
-                    )
+                            },
+                            modifier = if (isLive) Modifier else Modifier.semantics {
+                                customActions = listOf(CustomAccessibilityAction("Delete") { delete(0); true })
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -218,6 +281,21 @@ fun HomeScreen(
                 .height(170.dp)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background)))
         )
+        // Above the record button, which stays where it is.
+        var lastUndoable by remember { mutableStateOf(undoable) }
+        if (undoable != null) lastUndoable = undoable
+        AnimatedVisibility(
+            visible = undoable != null,
+            enter = fadeIn(tween(160)) +
+                slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) { it / 2 } +
+                scaleIn(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), initialScale = 0.9f),
+            exit = fadeOut(tween(140)) +
+                slideOutVertically(tween(200, easing = Motion.EmphasizedAccelerate)) { it / 3 } +
+                scaleOut(tween(200, easing = Motion.EmphasizedAccelerate), targetScale = 0.94f),
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 124.dp),
+        ) {
+            lastUndoable?.let { UndoPill(it.serial, undo) }
+        }
         Box(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 28.dp),
             contentAlignment = Alignment.Center,
@@ -565,6 +643,42 @@ private fun RecordButton(enabled: Boolean, onClick: () -> Unit) {
         }
     }
 }
+
+/** "Note deleted · Undo". Dips a little when another note replaces the one it offered. */
+@Composable
+private fun UndoPill(serial: Long, onUndo: () -> Unit) {
+    val dip = remember { androidx.compose.animation.core.Animatable(1f) }
+    var shownSerial by remember { mutableStateOf(serial) }
+    LaunchedEffect(serial) {
+        if (serial != shownSerial) {
+            shownSerial = serial
+            dip.snapTo(0.94f)
+            dip.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+        }
+    }
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shadowElevation = 6.dp,
+        modifier = Modifier
+            .graphicsLayer { scaleX = dip.value; scaleY = dip.value }
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Row(Modifier.padding(start = 22.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Note deleted", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.width(6.dp))
+            TextButton(
+                onClick = onUndo,
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.inverseOnSurface),
+            ) {
+                Text("Undo", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+            }
+        }
+    }
+}
+
+private const val UNDO_WINDOW_MS = 5_000L
 
 @Composable
 private fun RecordingPill(live: RecordingController.Live, onClick: () -> Unit) {
