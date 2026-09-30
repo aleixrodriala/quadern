@@ -1,0 +1,3 @@
+Second beta.
+- Swipe a note left or right to delete it. Undo brings it back for a few seconds.
+- Before you sign in with ChatGPT, the app now also says that OpenAI's terms don't allow this route, so in principle OpenAI could limit your account.

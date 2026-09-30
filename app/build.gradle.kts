@@ -16,7 +16,7 @@ val hasKeystore = keystoreProps.getProperty("storeFile") != null
 
 val appVersion = "0.1.0"
 // Shown in the app and on the release; the tag is v<appVersion><suffix>, e.g. v0.1.0-beta.1.
-val appVersionSuffix = "-beta.1"
+val appVersionSuffix = "-beta.2"
 
 android {
     namespace = "io.github.aleixrodriala.quadern"
@@ -28,8 +28,10 @@ android {
         applicationId = "io.github.aleixrodriala.quadern"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        // 0.1.0 -> 100, 1.2.3 -> 10203
-        versionCode = appVersion.split('.').map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
+        // 0.1.0-beta.2 -> 10002, 0.1.0 -> 10099, 1.2.3 -> 1020399: each beta sorts before its release.
+        // (0.1.0-beta.1 shipped as 100, under an older scheme; everything since sorts after it.)
+        versionCode = appVersion.split('.').map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c } * 100 +
+            (Regex("""-beta\.(\d+)""").find(appVersionSuffix)?.groupValues?.get(1)?.toInt() ?: 99)
         versionName = appVersion + appVersionSuffix
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

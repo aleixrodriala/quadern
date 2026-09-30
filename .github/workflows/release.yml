@@ -122,7 +122,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          notes="fastlane/metadata/android/en-US/changelogs/$(grep -oP 'val appVersion = "\K[^"]+' app/build.gradle.kts | awk -F. '{print $1*10000+$2*100+$3}').txt"
+          # Named by versionCode, as app/build.gradle.kts computes it: 0.1.0-beta.2 -> 10002.
+          base="$(grep -oP 'val appVersion = "\K[^"]+' app/build.gradle.kts | awk -F. '{print $1*10000+$2*100+$3}')"
+          beta="$(grep -oP 'val appVersionSuffix = "-beta\.\K[0-9]+' app/build.gradle.kts || echo 99)"
+          notes="fastlane/metadata/android/en-US/changelogs/$((base * 100 + beta)).txt"
           pre=""; case "$TAG" in *-*) pre="--prerelease" ;; esac
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
