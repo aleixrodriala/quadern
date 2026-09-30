@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -107,10 +108,16 @@ fun HomeScreen(
     onSearchRequestHandled: () -> Unit = {},
 ) {
     val c = LocalContainer.current
-    val query = remember { MutableStateFlow("") }
+    // Saved, so opening a note from the results and coming back finds the search as it was.
+    var savedQuery by rememberSaveable { mutableStateOf("") }
+    var savedTag by rememberSaveable { mutableStateOf<String?>(null) }
+    val query = remember { MutableStateFlow(savedQuery) }
     val q by query.collectAsState()
-    val tagFilter = remember { MutableStateFlow<String?>(null) }
+    val tagFilter = remember { MutableStateFlow(savedTag) }
     val tag by tagFilter.collectAsState()
+    LaunchedEffect(q, tag) { savedQuery = q; savedTag = tag }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val notesFlow = remember { combine(query, tagFilter, ::Pair).flatMapLatest { (q, t) -> c.repository.observeNotes(q, t) } }
     val notes by notesFlow.collectAsState(initial = null)
     val live by c.recording.live.collectAsState()
@@ -119,7 +126,7 @@ fun HomeScreen(
     val settings by c.settings.settings.collectAsState(initial = null)
     val account by c.auth.account.collectAsState()
     val authLoaded by c.auth.loaded.collectAsState()
-    var searching by remember { mutableStateOf(false) }
+    var searching by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val tags by remember { c.repository.observeTags() }.collectAsState(initial = emptyList())
     LaunchedEffect(searchRequest) {
@@ -158,7 +165,12 @@ fun HomeScreen(
                 TagFilter(
                     tags = if (searching) tags else emptyList(),
                     selected = tag,
-                    onSelect = { tagFilter.value = it },
+                    // Picking a tag is browsing, not typing: put the keyboard away so the results show.
+                    onSelect = {
+                        tagFilter.value = it
+                        keyboard?.hide()
+                        focusManager.clearFocus()
+                    },
                 )
             }
             if (needsSignIn && !searching) {
@@ -236,7 +248,8 @@ private fun Header(
             if (isSearching) {
                 val focus = remember { FocusRequester() }
                 // Coming from a tag: show the results rather than pop the keyboard over them.
-                LaunchedEffect(Unit) { if (tag == null) focus.requestFocus() }
+                // Back from a note, a search already under way stays as it was, without the keyboard.
+                LaunchedEffect(Unit) { if (tag == null && query.isEmpty()) focus.requestFocus() }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
                         value = query,

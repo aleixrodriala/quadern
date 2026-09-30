@@ -73,7 +73,12 @@ p { margin: 0; }
 .top nav a:hover { color: var(--ink); }
 
 /* Hero */
-.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: clamp(2rem, 6vw, 5rem); align-items: center; padding-block: clamp(2rem, 6vw, 4.5rem) clamp(3rem, 7vw, 5.5rem); }
+.hero { display: grid; gap: clamp(2.5rem, 6vw, 4rem); padding-block: clamp(2rem, 6vw, 4.5rem) clamp(3rem, 7vw, 5.5rem); }
+.hero-copy { max-width: 40rem; }
+/* Three real screens, like the README: the list, a recording, the finished note. */
+.trio { margin: 0; }
+.trio img { display: block; width: 100%; height: auto; max-width: 100%; }
+.trio figcaption { margin-top: 0.9rem; font-size: 0.82rem; color: var(--muted); }
 .hero h1 { font-weight: 800; font-size: clamp(2.6rem, 6.4vw, 4.6rem); line-height: 0.98; letter-spacing: -0.035em; }
 .hero .lede { margin-top: 1.5rem; max-width: 31rem; font-size: 1.2rem; line-height: 1.5; color: var(--ink-2); }
 .meaning { margin-top: 1.1rem; font-size: 0.95rem; color: var(--muted); }
@@ -208,7 +213,7 @@ footer nav a { color: var(--ink-2); }
 
   <main>
     <div class="hero">
-      <div>
+      <div class="hero-copy">
         <h1>Talk. Every word is kept.</h1>
         <p class="lede">A voice-notes app for Android. Tap once and talk; you get an exact transcript, a short title, a summary in plain words and a few tags. Transcribe with the ChatGPT plan you already have, or keep everything on your phone with Whisper, offline.</p>
         <p class="meaning"><i>Quadern</i> is Catalan for notebook: the small one you carry everywhere.</p>
@@ -221,12 +226,10 @@ footer nav a { color: var(--ink-2); }
         </div>
         <p class="metaline mono">v0.1 beta · Android 10+ · free and open source (MIT) · no account · works offline</p>
       </div>
-      <div>
-        <div class="phone">
-          <video src="assets/flow-light-fast.mp4" poster="assets/flow-light-fast-poster.jpg" autoplay muted loop playsinline aria-label="A real recording on a Pixel 9: the waveform follows the voice, then the note appears, gets its title, and opens with its summary and tags."></video>
-        </div>
-        <p class="caption">A real note on a Pixel 9. The talking is sped up; the transcript and summary arrive in real time.</p>
-      </div>
+      <figure class="trio">
+        <img src="assets/hero.webp" width="1700" height="1171" alt="Three Quadern screens: the list of notes in English, Catalan and Spanish; the recording screen with a live waveform; and a finished note with its title, summary and tags">
+        <figcaption>Notes in English, Catalan and Spanish, a recording, and a finished note.</figcaption>
+      </figure>
     </div>
 
     <section id="how">

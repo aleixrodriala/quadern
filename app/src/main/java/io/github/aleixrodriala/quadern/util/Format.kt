@@ -27,9 +27,11 @@ fun formatShortDuration(ms: Long): String {
 }
 
 private val timeFmt = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-private val dayFmt = DateTimeFormatter.ofPattern("EEE", Locale.getDefault())
-private val dateFmt = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
-private val fullDateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+// Day and month names in English, like the rest of the app ("Today", "Yesterday"), so a phone set
+// to Spanish doesn't show "Yesterday" next to "lun". Times keep the phone's own style (24-hour or not).
+private val dayFmt = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
+private val dateFmt = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH)
+private val fullDateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH)
 private val longFmt = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.LONG, FormatStyle.SHORT)
 
 /** "Today · 10:42", "Mon · 10:42", "Mar 2 · 10:42", "Mar 2, 2025 · 10:42". */

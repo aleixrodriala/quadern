@@ -53,6 +53,9 @@ android {
             // Phones only; x86_64 exists for the emulator in debug builds. -PreleaseAbis=x86_64
             // builds a release for the emulator, to test R8 there.
             ndk { abiFilters += (findProperty("releaseAbis") as String? ?: "arm64-v8a").split(",") }
+            // -PdebuggableRelease: a release build that run-as can open, to load demo data for
+            // screenshots; install the normal release over it afterwards (same key, data kept).
+            isDebuggable = findProperty("debuggableRelease") != null
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

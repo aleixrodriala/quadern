@@ -19,6 +19,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -53,10 +54,12 @@ import io.github.aleixrodriala.quadern.ui.components.Motion
 import io.github.aleixrodriala.quadern.ui.components.SkeletonLines
 import io.github.aleixrodriala.quadern.ui.components.appearStaggered
 import io.github.aleixrodriala.quadern.ui.components.pressScale
+import io.github.aleixrodriala.quadern.ui.components.shimmer
 
 /** What the summary card shows; each state fades through to the next. */
 private sealed interface SummaryUi {
-    data object Writing : SummaryUi
+    /** [short]: the note is too short for a summary, so only its tags are coming. */
+    data class Writing(val short: Boolean) : SummaryUi
     data object Retrying : SummaryUi
     data class Content(val summary: String, val tags: List<String>) : SummaryUi
     data object Failed : SummaryUi
@@ -64,7 +67,8 @@ private sealed interface SummaryUi {
 }
 
 private fun summaryUiOf(n: NoteWithProgress): SummaryUi? = when (n.insightsStatus) {
-    InsightsStatus.PENDING -> if (n.insightsAttempts > 0) SummaryUi.Retrying else SummaryUi.Writing
+    InsightsStatus.PENDING -> if (n.insightsAttempts > 0) SummaryUi.Retrying
+        else SummaryUi.Writing(short = !io.github.aleixrodriala.quadern.insights.InsightsPrompt.wantsSummary(n.transcript))
     InsightsStatus.DONE -> if (n.summary.isBlank() && n.tagList.isEmpty()) null else SummaryUi.Content(n.summary, n.tagList)
     InsightsStatus.FAILED -> SummaryUi.Failed
     InsightsStatus.BLOCKED -> SummaryUi.NeedsSetup
@@ -102,9 +106,10 @@ fun SummaryCard(
             transitionSpec = { fadeIn(tween(220, delayMillis = 80)) togetherWith fadeOut(tween(110)) },
             label = "summary-setup",
         ) { needsSetup ->
-            val cardState = (if (shown == SummaryUi.NeedsSetup) last[1] else shown) ?: SummaryUi.Writing
-            // A very short note has tags but no summary: show just the chips, no card around them.
-            val bare = cardState is SummaryUi.Content && cardState.summary.isBlank()
+            val cardState = (if (shown == SummaryUi.NeedsSetup) last[1] else shown) ?: SummaryUi.Writing(short = false)
+            // A very short note has tags but no summary: show just the chips, no card around them,
+            // and while they're being written, just the chips' outlines.
+            val bare = (cardState is SummaryUi.Content && cardState.summary.isBlank()) || (cardState is SummaryUi.Writing && cardState.short)
             val cardColor by animateColorAsState(
                 if (bare) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f) else MaterialTheme.colorScheme.surfaceContainer,
                 tween(300), label = "card-color",
@@ -128,7 +133,7 @@ fun SummaryCard(
                 ) { state ->
                     Column(Modifier.padding(horizontal = padH, vertical = padV)) {
                         when (state) {
-                            SummaryUi.Writing -> Writing()
+                            is SummaryUi.Writing -> if (state.short) WritingTags() else Writing()
                             is SummaryUi.Content -> Content(state, onTag, onCard = !bare)
                             SummaryUi.Retrying -> Problem("Couldn't reach the service. It will try again on its own.", "Try now", onRetry)
                             SummaryUi.Failed -> Problem("Couldn't write a summary.", "Try again", onRetry)
@@ -157,6 +162,16 @@ private fun Writing() {
     Spacer(Modifier.height(16.dp))
     SkeletonLines()
     Spacer(Modifier.height(6.dp))
+}
+
+/** Placeholders shaped like the one or two tags on their way. */
+@Composable
+private fun WritingTags() {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (w in listOf(92.dp, 74.dp)) {
+            Box(Modifier.width(w).height(34.dp).shimmer(RoundedCornerShape(50)))
+        }
+    }
 }
 
 @Composable
