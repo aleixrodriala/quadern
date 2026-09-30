@@ -119,7 +119,7 @@ fun WelcomeScreen(onSignIn: () -> Unit, onOpenSettings: () -> Unit, onDone: () -
             Text("Quadern", style = MaterialTheme.typography.displaySmall, modifier = Modifier.appearStaggered(1))
             Spacer(Modifier.height(6.dp))
             Text(
-                "Talk. Every word is kept.",
+                "Think out loud.",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.appearStaggered(2),

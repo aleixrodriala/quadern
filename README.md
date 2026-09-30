@@ -4,7 +4,7 @@
 
 # Quadern
 
-### Talk. Every word is kept.
+### Think out loud.
 
 *Quadern* is Catalan for notebook: the small one you carry everywhere.
 
