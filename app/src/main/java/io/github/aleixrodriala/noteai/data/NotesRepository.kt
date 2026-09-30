@@ -3,6 +3,7 @@ package io.github.aleixrodriala.noteai.data
 import android.util.Log
 import io.github.aleixrodriala.noteai.audio.AdtsFrameSource
 import io.github.aleixrodriala.noteai.audio.AdtsIndex
+import io.github.aleixrodriala.noteai.audio.AudioImporter
 import io.github.aleixrodriala.noteai.audio.AudioSpec
 import io.github.aleixrodriala.noteai.audio.ChunkPlanner
 import io.github.aleixrodriala.noteai.audio.M4aWriter
@@ -212,14 +213,18 @@ class NotesRepository(
                     continue
                 }
             }
+            val endedAt = audio.lastModified()
             if (audio == m4a) {
-                // Finished audio without its note: finalizing needs the stream, so it can't be
-                // re-planned; keep the file where the user can still find it rather than lose it.
-                Log.w(TAG, "Orphaned finished audio $id; leaving it for manual recovery")
-                continue
+                // Finished audio whose note was lost: turn it back into the stream (a lossless frame
+                // copy for our own files) so it goes through finalizing like any recording.
+                val ok = withContext(Dispatchers.IO) {
+                    runCatching { AudioImporter.import(m4a, adts, files.levels(id)) }
+                        .onFailure { Log.e(TAG, "Couldn't read orphaned audio $id", it); adts.delete() }.isSuccess
+                }
+                if (!ok) continue
             }
             val durationMs = withContext(Dispatchers.IO) { AudioSpec.frameToMs(AdtsIndex.scan(adts).frameCount) }
-            val createdAt = (audio.lastModified() - durationMs).coerceAtLeast(0)
+            val createdAt = (endedAt - durationMs).coerceAtLeast(0)
             Log.w(TAG, "Adopting orphaned recording $id (${durationMs} ms)")
             runCatching {
                 dao.insertNote(Note(id = id, createdAt = createdAt, updatedAt = createdAt, durationMs = durationMs))
