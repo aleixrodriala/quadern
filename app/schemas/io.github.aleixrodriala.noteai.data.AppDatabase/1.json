@@ -1,0 +1,197 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "00df8d27582d81b6155f3f0329b6c8cd",
+    "entities": [
+      {
+        "tableName": "notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `title` TEXT NOT NULL, `titleIsAuto` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL, `recordingState` TEXT NOT NULL, `interrupted` INTEGER NOT NULL, `transcript` TEXT NOT NULL, `transcriptEdited` INTEGER NOT NULL, `transcriptionStatus` TEXT NOT NULL, `transcriptionError` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleIsAuto",
+            "columnName": "titleIsAuto",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordingState",
+            "columnName": "recordingState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "interrupted",
+            "columnName": "interrupted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transcript",
+            "columnName": "transcript",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transcriptEdited",
+            "columnName": "transcriptEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transcriptionStatus",
+            "columnName": "transcriptionStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transcriptionError",
+            "columnName": "transcriptionError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_notes_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notes_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "chunks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`noteId` TEXT NOT NULL, `idx` INTEGER NOT NULL, `startFrame` INTEGER NOT NULL, `endFrame` INTEGER NOT NULL, `status` TEXT NOT NULL, `text` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `lastError` TEXT, `provider` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`noteId`, `idx`), FOREIGN KEY(`noteId`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "noteId",
+            "columnName": "noteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idx",
+            "columnName": "idx",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startFrame",
+            "columnName": "startFrame",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endFrame",
+            "columnName": "endFrame",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "lastError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "noteId",
+            "idx"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "notes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "noteId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '00df8d27582d81b6155f3f0329b6c8cd')"
+    ]
+  }
+}

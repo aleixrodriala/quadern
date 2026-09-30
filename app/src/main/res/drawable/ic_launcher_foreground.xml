@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- A short voice waveform: five rounded bars. -->
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M34,48 L34,60" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M44,40 L44,68" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M54,33 L54,75" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M64,40 L64,68" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M74,48 L74,60" />
+</vector>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Every built-in service is HTTPS. A custom server is often self-hosted on a home network over
+         plain HTTP (http://192.168.1.10:8000/v1), which Android would otherwise refuse. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

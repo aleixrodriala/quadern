@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NoteAI</string>
+    <string name="share_label">Transcribe with NoteAI</string>
+
+    <string name="channel_recording">Recording</string>
+    <string name="channel_sign_in">Sign-in</string>
+    <string name="channel_transcription">Transcription</string>
+    <string name="channel_alerts">Alerts</string>
+
+    <string name="notification_recording">Recording</string>
+    <string name="notification_paused">Paused</string>
+    <string name="notification_mic_busy">Microphone in use by another app</string>
+    <string name="notification_transcribing">Transcribing notes</string>
+    <string name="notification_summarizing">Writing summaries</string>
+    <string name="notification_sign_in_title">Sign in to keep transcribing</string>
+    <string name="notification_sign_in_text">Your ChatGPT session expired. Your recordings are safe and will be transcribed after you sign in.</string>
+    <string name="notification_interrupted_title">Recording saved</string>
+    <string name="notification_interrupted_text">NoteAI was stopped while recording. Everything up to that moment was saved.</string>
+    <string name="sign_in_notification_title">Signing in to ChatGPT</string>
+    <string name="sign_in_notification_text">Return to NoteAI when the browser says you\'re done.</string>
+
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_stop_save">Stop &amp; save</string>
+
+    <string name="error_mic_start">Couldn\'t start recording. Try again with NoteAI open.</string>
+    <string name="error_recording_failed">Recording stopped unexpectedly. What was recorded is saved.</string>
+    <string name="error_storage_full">Your phone is almost out of storage, so recording stopped. The note is saved.</string>
+</resources>
