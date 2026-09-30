@@ -1,0 +1,40 @@
+name: Something went wrong
+description: A recording, transcript or summary didn't behave as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who transcribes
+      options:
+        - ChatGPT
+        - On this phone (Whisper)
+        - My own API key
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: Pixel 9, Android 17
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Quadern version
+      description: Settings, at the bottom.
+      placeholder: 0.1.0-beta.1
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots help. Please don't attach recordings or transcripts you wouldn't want public.

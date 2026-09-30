@@ -1,0 +1,16 @@
+name: Beta feedback
+description: Something that felt wrong, slow or confusing, or an idea.
+labels: [feedback]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: What you noticed
+      description: Small things count. "This took two taps and should take one" is exactly the kind of feedback the beta needs.
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Languages you speak in your notes
+      placeholder: Catalan, Spanish, English
