@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +47,6 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -57,6 +58,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -78,6 +81,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.aleixrodriala.quadern.data.NoteWithProgress
 import io.github.aleixrodriala.quadern.data.TranscriptionStatus
@@ -89,6 +93,7 @@ import io.github.aleixrodriala.quadern.ui.Tone
 import io.github.aleixrodriala.quadern.ui.components.CircleIconButton
 import io.github.aleixrodriala.quadern.ui.components.Dot
 import io.github.aleixrodriala.quadern.ui.components.Motion
+import io.github.aleixrodriala.quadern.ui.components.SwipeRows
 import io.github.aleixrodriala.quadern.ui.components.SwipeToDelete
 import io.github.aleixrodriala.quadern.ui.components.pressScale
 import io.github.aleixrodriala.quadern.ui.components.Motion.textSwap
@@ -148,6 +153,12 @@ fun HomeScreen(
     // Which way each swiped note left, so Undo can bring it back from there.
     val leftTo = remember { HashMap<String, Int>() }
     val returning = remember { HashMap<String, Int>() }
+    // Swiped away but still closing their space: they stay in the list until that's done, even if
+    // the note itself is gone by then.
+    val closing = remember { mutableStateMapOf<String, NoteWithProgress>() }
+    // Bumped when a note comes back, so a row still on its way out starts over on its way in.
+    val comebacks = remember { mutableStateMapOf<String, Int>() }
+    val swipeRows = remember { SwipeRows() }
     val a11y = androidx.compose.ui.platform.LocalAccessibilityManager.current
     // Longer for people who need it (Android's accessibility timeout setting).
     val undoWindow = remember(a11y) {
@@ -170,13 +181,20 @@ fun HomeScreen(
 
     val showSignIn = needsSignIn && !searching
     val showModel = needsModel && !searching && localModel != null
-    val shown = remember(notes, hidden) { notes?.filter { it.id !in hidden } }
+    val shown = notes?.let { all ->
+        val list = all.filter { it.id !in hidden || it.id in closing }
+        val gone = closing.values.filter { kept -> list.none { it.id == kept.id } }
+        // Every list is newest first.
+        if (gone.isEmpty()) list else (list + gone).sortedByDescending { it.createdAt }
+    }
     val latestShown by androidx.compose.runtime.rememberUpdatedState(shown)
     // Notes come after the header, the tag row and any banners.
     val firstNoteIndex = 2 + (if (showSignIn) 1 else 0) + (if (showModel) 1 else 0)
     val undo: () -> Unit = {
         c.pendingDeletes.undo()?.let { id ->
             leftTo.remove(id)?.let { returning[id] = it }
+            closing.remove(id)
+            comebacks[id] = (comebacks[id] ?: 0) + 1
             // Scrolled away since: go to where it comes back.
             scope.launch {
                 val at = kotlinx.coroutines.withTimeoutOrNull(1_000) {
@@ -235,39 +253,53 @@ fun HomeScreen(
                 item(key = "empty") { Box(Modifier.animateItem()) { EmptyState(searching = q.isNotBlank() || tag != null) } }
             }
             if (list != null) {
-                items(list, key = { it.id }) { note ->
+                itemsIndexed(list, key = { _, note -> note.id }) { i, note ->
                     val isLive = live?.noteId == note.id
                     val delete = { side: Int ->
                         leftTo[note.id] = side
+                        closing[note.id] = note
                         c.pendingDeletes.remove(note.id, undoWindow)
                     }
-                    SwipeToDelete(
-                        onDelete = delete,
-                        // The note being recorded ends from the recorder, not here.
-                        enabled = !isLive,
-                        enterFrom = remember { returning.remove(note.id) ?: 0 },
-                        // Swiped rows are already off the screen when they go: just close the gap.
-                        modifier = Modifier.animateItem(fadeOutSpec = tween(120)),
-                    ) {
-                        NoteRow(
-                            note = note,
-                            isLive = isLive,
-                            importProgress = importing[note.id],
-                            onClick = { if (live?.noteId == note.id) onOpenRecorder() else onOpenNote(note.id) },
-                            onStatusAction = {
-                                when (note.transcriptionStatus) {
-                                    TranscriptionStatus.NEEDS_AUTH -> onSignIn()
-                                    TranscriptionStatus.NEEDS_SETUP -> scope.launch {
-                                        val st = c.settings.current()
-                                        if (c.providers.isReady(st.provider, st)) c.repository.transcribe(note.id) else onOpenSettings()
+                    key(comebacks[note.id] ?: 0) {
+                        val enterFrom = remember { returning.remove(note.id) ?: 0 }
+                        SwipeToDelete(
+                            key = note.id,
+                            rows = swipeRows,
+                            nextKey = list.getOrNull(i + 1)?.id,
+                            onDelete = delete,
+                            onGone = { closing.remove(note.id) },
+                            // The note being recorded ends from the recorder, not here.
+                            enabled = !isLive,
+                            enterFrom = enterFrom,
+                            modifier = Modifier.animateItem(
+                                // A note coming back opens its own space and slides into it.
+                                fadeInSpec = if (enterFrom != 0) null else spring(stiffness = Spring.StiffnessMediumLow),
+                                // While a row opens or closes its space, the rows below move with it
+                                // rather than chase it with springs of their own.
+                                placementSpec = if (swipeRows.resizing) null else spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold),
+                                fadeOutSpec = tween(120),
+                            ),
+                        ) { dismiss ->
+                            NoteRow(
+                                note = note,
+                                isLive = isLive,
+                                importProgress = importing[note.id],
+                                onClick = { if (live?.noteId == note.id) onOpenRecorder() else onOpenNote(note.id) },
+                                onStatusAction = {
+                                    when (note.transcriptionStatus) {
+                                        TranscriptionStatus.NEEDS_AUTH -> onSignIn()
+                                        TranscriptionStatus.NEEDS_SETUP -> scope.launch {
+                                            val st = c.settings.current()
+                                            if (c.providers.isReady(st.provider, st)) c.repository.transcribe(note.id) else onOpenSettings()
+                                        }
+                                        else -> scope.launch { c.repository.transcribe(note.id) }
                                     }
-                                    else -> scope.launch { c.repository.transcribe(note.id) }
-                                }
-                            },
-                            modifier = if (isLive) Modifier else Modifier.semantics {
-                                customActions = listOf(CustomAccessibilityAction("Delete") { delete(0); true })
-                            },
-                        )
+                                },
+                                modifier = if (isLive) Modifier else Modifier.semantics {
+                                    customActions = listOf(CustomAccessibilityAction("Delete") { dismiss(); true })
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -593,7 +625,6 @@ private fun NoteRow(
                 }
             }
         }
-        HorizontalDivider(Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
