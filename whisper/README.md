@@ -1,7 +1,7 @@
-# :whisper — on-device speech-to-text for NoteAI
+# :whisper — on-device speech-to-text for Quadern
 
 Android library module wrapping [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (CPU only)
-behind a small Kotlin API. Namespace `io.github.aleixrodriala.noteai.whisper`, minSdk 29,
+behind a small Kotlin API. Namespace `io.github.aleixrodriala.quadern.whisper`, minSdk 29,
 compileSdk 37, Java/JVM 17, ABIs `arm64-v8a` + `x86_64`.
 
 ## Vendored whisper.cpp
@@ -139,7 +139,7 @@ extracted to disk), hence the ~40-line soname loader; it works whether or not li
 Cost: ~1.05 MB per arm64 variant; the AAR carries 9.4 MB of arm64 `.so` (22.1 MB x86_64); Play
 delivers only the device's ABI from an AAB. Not tested on real arm64 hardware (not allowed here):
 if a benchmark on the Pixel 9 shows the SVE2 variant slower than the NEON+i8mm one, force it with
-`Os.setenv("NOTEAI_WHISPER_CPU_BACKEND", "libggml-cpu-android_armv8.6_1.so", true)` before the
+`Os.setenv("QUADERN_WHISPER_CPU_BACKEND", "libggml-cpu-android_armv8.6_1.so", true)` before the
 first `WhisperContext` call, or run the androidTest with `-e cpuBackend <lib>` to compare.
 
 Other native build choices (`src/main/cpp/CMakeLists.txt`): always `-O3 -DNDEBUG`, also for AGP
@@ -199,7 +199,7 @@ adb -s emulator-5560 push "$(wslpath -w /mnt/c/.../ggml-tiny.en.bin)" /data/loca
 ./gradlew :assembleDebugAndroidTest
 cp build/outputs/apk/androidTest/debug/whisper-debug-androidTest.apk /mnt/c/Users/$USER/
 adb -s emulator-5560 install -r -t "$(wslpath -w /mnt/c/Users/$USER/whisper-debug-androidTest.apk)"
-adb -s emulator-5560 shell am instrument -w io.github.aleixrodriala.noteai.whisper.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5560 shell am instrument -w io.github.aleixrodriala.quadern.whisper.test/androidx.test.runner.AndroidJUnitRunner
 adb -s emulator-5560 logcat -d -s WhisperTest:I       # transcripts + timings ("RESULT ...")
 ```
 

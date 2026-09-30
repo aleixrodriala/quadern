@@ -1,4 +1,4 @@
-// JNI glue between io.github.aleixrodriala.noteai.whisper.WhisperJni and whisper.cpp.
+// JNI glue between io.github.aleixrodriala.quadern.whisper.WhisperJni and whisper.cpp.
 //
 // Threading model (enforced on the Kotlin side): at most one whisper_full() per context at a time;
 // requestCancel()/cancelGeneration() may be called from any thread at any time while the handle
@@ -93,7 +93,7 @@ void load_cpu_backend_once() {
 
         std::string best;
         int best_score = 0;
-        std::stringstream candidates(NOTEAI_GGML_CPU_BACKENDS);
+        std::stringstream candidates(QUADERN_GGML_CPU_BACKENDS);
         std::string lib;
         while (std::getline(candidates, lib, ',')) {
             if (lib.empty()) continue;
@@ -104,20 +104,20 @@ void load_cpu_backend_once() {
             }
         }
 
-        // Benchmarking aid: Os.setenv("NOTEAI_WHISPER_CPU_BACKEND", "libggml-cpu-android_armv8.6_1.so",
+        // Benchmarking aid: Os.setenv("QUADERN_WHISPER_CPU_BACKEND", "libggml-cpu-android_armv8.6_1.so",
         // true) before the first WhisperContext call forces a variant, if this CPU supports it.
-        const char * forced = getenv("NOTEAI_WHISPER_CPU_BACKEND");
+        const char * forced = getenv("QUADERN_WHISPER_CPU_BACKEND");
         if (forced != nullptr && forced[0] != '\0') {
             const int score = score_of(forced);
             if (score > 0) {
                 best = forced;
                 best_score = score;
             } else {
-                LOGW("NOTEAI_WHISPER_CPU_BACKEND=%s is not usable on this CPU; ignoring it", forced);
+                LOGW("QUADERN_WHISPER_CPU_BACKEND=%s is not usable on this CPU; ignoring it", forced);
             }
         }
         if (best.empty()) {
-            LOGE("no ggml CPU backend is usable on this device (candidates: %s)", NOTEAI_GGML_CPU_BACKENDS);
+            LOGE("no ggml CPU backend is usable on this device (candidates: %s)", QUADERN_GGML_CPU_BACKENDS);
             return;
         }
         if (ggml_backend_load(best.c_str()) == nullptr) {
@@ -263,7 +263,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_loadModel(JNIEnv * env, jclass, jstring j_path) {
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_loadModel(JNIEnv * env, jclass, jstring j_path) {
     load_cpu_backend_once();
     if (g_cpu_backend.empty()) {
         throw_java(env, "java/lang/IllegalStateException",
@@ -289,7 +289,7 @@ Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_loadModel(JNIEnv * env, j
 }
 
 JNIEXPORT void JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_freeModel(JNIEnv *, jclass, jlong ptr) {
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_freeModel(JNIEnv *, jclass, jlong ptr) {
     auto * handle = reinterpret_cast<Handle *>(ptr);
     if (handle == nullptr) return;
     whisper_free(handle->ctx);
@@ -297,19 +297,19 @@ Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_freeModel(JNIEnv *, jclas
 }
 
 JNIEXPORT void JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_requestCancel(JNIEnv *, jclass, jlong ptr) {
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_requestCancel(JNIEnv *, jclass, jlong ptr) {
     auto * handle = reinterpret_cast<Handle *>(ptr);
     if (handle != nullptr) handle->cancel_gen.fetch_add(1);
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_cancelGeneration(JNIEnv *, jclass, jlong ptr) {
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_cancelGeneration(JNIEnv *, jclass, jlong ptr) {
     auto * handle = reinterpret_cast<Handle *>(ptr);
     return handle != nullptr ? (jlong) handle->cancel_gen.load() : 0;
 }
 
 JNIEXPORT jstring JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_systemInfo(JNIEnv * env, jclass) {
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_systemInfo(JNIEnv * env, jclass) {
     load_cpu_backend_once();
     std::string info = whisper_print_system_info();
     info += "CPU_BACKEND = ";
@@ -324,7 +324,7 @@ Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_systemInfo(JNIEnv * env, 
 // 4-byte UTF-8 (emoji, some CJK) that JNI's NewStringUTF (modified UTF-8) would reject, so the
 // Kotlin side decodes the bytes instead.
 JNIEXPORT jbyteArray JNICALL
-Java_io_github_aleixrodriala_noteai_whisper_WhisperJni_transcribe(
+Java_io_github_aleixrodriala_quadern_whisper_WhisperJni_transcribe(
         JNIEnv * env, jclass, jlong ptr, jlong start_gen, jfloatArray j_samples, jstring j_language,
         jint threads, jint beam_size, jobject sink) {
     auto * handle = reinterpret_cast<Handle *>(ptr);

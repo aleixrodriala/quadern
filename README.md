@@ -1,4 +1,4 @@
-# NoteAI
+# Quadern
 
 A simple, open-source voice-notes recorder for Android. Tap the button, talk, and get a transcript,
 using **the same voice-to-text as the ChatGPT app, on your ChatGPT subscription**. No API key and
@@ -34,13 +34,13 @@ few tags so notes are easy to find later. No chats, folders or templates.
   - Rename a note whenever you like; your title is never overwritten. Clear it to get the
     automatic one back.
   - Search covers titles, summaries, tags and transcripts; tap a tag to see every note with it.
-- **Share audio to NoteAI**, for example a voice message, to transcribe it.
+- **Share audio to Quadern**, for example a voice message, to transcribe it.
 - Search, rename, edit the transcript, share text or audio, and play back at 1× / 1.5× / 2×.
 - A clean black-and-white design, with optional Material You wallpaper colors, and a dark theme.
 
 ## How the ChatGPT transcription works
 
-The ChatGPT apps send dictation audio to `https://chatgpt.com/backend-api/transcribe`. NoteAI signs
+The ChatGPT apps send dictation audio to `https://chatgpt.com/backend-api/transcribe`. Quadern signs
 you in with the same OAuth flow the open-source Codex CLI uses ("Sign in with ChatGPT"): a browser
 page from OpenAI, with a redirect to `localhost` on your phone or a device code. It then sends your
 audio to that endpoint with your token.
@@ -48,7 +48,7 @@ audio to that endpoint with your token.
 - **Not an official API.** OpenAI can change or restrict it at any time, which is why other
   providers are built in.
 - **Silent truncation.** The endpoint silently drops audio past about 10.7 minutes of a single
-  upload. NoteAI therefore never uploads more than 8 minutes at once; pieces are 4–6 minutes and
+  upload. Quadern therefore never uploads more than 8 minutes at once; pieces are 4–6 minutes and
   cut at the quietest moment.
 - **Your credentials stay on the phone.** Tokens are stored encrypted with a key held in the
   Android Keystore. The refresh token rotates on every use, so refreshes are serialized and saved
@@ -66,7 +66,7 @@ a service yourself. Like transcription, this is not an official API.
 
 ## Reliability design
 
-| Risk | What NoteAI does |
+| Risk | What Quadern does |
 |---|---|
 | App in background / screen off | `microphone` foreground service with an ongoing notification, plus a partial wake lock |
 | Process killed or crash | Audio is AAC frames appended to an ADTS file and fsync'd every 3 s. On restart (`START_STICKY`) or the next launch it becomes a note marked "saved after interruption" |
@@ -99,7 +99,7 @@ Requirements: JDK 17+, and the Android SDK with platform 37, build-tools and NDK
 ## Project layout
 
 ```
-app/src/main/java/io/github/aleixrodriala/noteai/
+app/src/main/java/io/github/aleixrodriala/quadern/
   audio/           recorder engine, AAC/ADTS writer, remuxing, chunk planner, audio import
   recording/       foreground service + UI controller
   transcription/   providers, WorkManager worker and scheduler, on-device Whisper models
@@ -115,7 +115,7 @@ whisper/           whisper.cpp JNI library module
 Recordings and transcripts stay on your phone. Audio is sent only to the transcription provider you
 choose, or to no one with on-device Whisper. Transcript text is sent only to the service that writes
 summaries (the transcription one by default), and summaries can be turned off. There are no
-analytics and no NoteAI servers.
+analytics and no Quadern servers.
 
 ## License
 

@@ -1,7 +1,7 @@
 # Native part of :whisper — builds whisper.cpp (vendored in ./whisper.cpp) plus the JNI glue.
 #
 # Output per ABI (all packaged into the AAR/APK):
-#   libnoteai_whisper.so            JNI glue + whisper.cpp itself (links ggml, ggml-base)
+#   libquadern_whisper.so            JNI glue + whisper.cpp itself (links ggml, ggml-base)
 #   libggml.so, libggml-base.so     ggml core / backend registry (arch-neutral code)
 #   libggml-cpu-<variant>.so        the compute kernels, one build per CPU feature level
 #
@@ -12,7 +12,7 @@
 # runtime whisper_jni.cpp dlopen()s every variant by soname, asks for its score and registers
 # the best one — so no variant's instructions ever run on a CPU that lacks them.
 cmake_minimum_required(VERSION 3.22.1)
-project(noteai_whisper C CXX)
+project(quadern_whisper C CXX)
 
 set(WHISPER_CPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
 
@@ -63,24 +63,24 @@ string(JOIN "," _cpu_backend_files_csv ${_cpu_backend_files})
 file(STRINGS ${WHISPER_CPP_DIR}/VERSION _whisper_version_lines)
 list(GET _whisper_version_lines 0 WHISPER_CPP_VERSION)
 
-add_library(noteai_whisper SHARED
+add_library(quadern_whisper SHARED
     whisper_jni.cpp
     ${WHISPER_CPP_DIR}/src/whisper.cpp
 )
-target_include_directories(noteai_whisper PRIVATE
+target_include_directories(quadern_whisper PRIVATE
     ${WHISPER_CPP_DIR}/include
     ${WHISPER_CPP_DIR}/src
 )
-target_compile_features(noteai_whisper PRIVATE cxx_std_17)
-target_compile_definitions(noteai_whisper PRIVATE
+target_compile_features(quadern_whisper PRIVATE cxx_std_17)
+target_compile_definitions(quadern_whisper PRIVATE
     WHISPER_VERSION="${WHISPER_CPP_VERSION}"
-    NOTEAI_GGML_CPU_BACKENDS="${_cpu_backend_files_csv}"
+    QUADERN_GGML_CPU_BACKENDS="${_cpu_backend_files_csv}"
 )
 # Only the JNI entry points need to be exported.
-set_target_properties(noteai_whisper PROPERTIES
+set_target_properties(quadern_whisper PROPERTIES
     C_VISIBILITY_PRESET hidden
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON
 )
-target_link_libraries(noteai_whisper PRIVATE ggml ggml-base log dl)
-add_dependencies(noteai_whisper ${_cpu_backends})
+target_link_libraries(quadern_whisper PRIVATE ggml ggml-base log dl)
+add_dependencies(quadern_whisper ${_cpu_backends})

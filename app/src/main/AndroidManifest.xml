@@ -24,7 +24,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.NoteAI"
+        android:theme="@style/Theme.Quadern"
         tools:targetApi="36">
 
         <activity
@@ -43,12 +43,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="audio/*" />
             </intent-filter>
-            <!-- "Back to NoteAI" link on the sign-in success page. -->
+            <!-- "Back to Quadern" link on the sign-in success page. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="noteai" android:host="auth" />
+                <data android:scheme="quadern" android:host="auth" />
             </intent-filter>
         </activity>
 

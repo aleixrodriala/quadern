@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.aleixrodriala.noteai.whisper"
+    namespace = "io.github.aleixrodriala.quadern.whisper"
     compileSdk = libs.versions.compileSdk.get().toInt()
     // r28+ links with 16 KB ELF alignment by default (required for Android 15+ 16 KB-page devices).
     ndkVersion = "29.0.14206865"

@@ -17,13 +17,13 @@ val hasKeystore = keystoreProps.getProperty("storeFile") != null
 val appVersion = "0.1.0"
 
 android {
-    namespace = "io.github.aleixrodriala.noteai"
+    namespace = "io.github.aleixrodriala.quadern"
     compileSdk = libs.versions.compileSdk.get().toInt()
     // Lets the build strip the on-device Whisper libraries (arm64 ~9 MB instead of ~12 MB).
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
-        applicationId = "io.github.aleixrodriala.noteai"
+        applicationId = "io.github.aleixrodriala.quadern"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         // 0.1.0 -> 100, 1.2.3 -> 10203

@@ -21,6 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "noteai"
+rootProject.name = "quadern"
 include(":app")
 include(":whisper")
