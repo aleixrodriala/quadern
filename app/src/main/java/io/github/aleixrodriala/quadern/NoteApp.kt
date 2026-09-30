@@ -15,6 +15,7 @@ import io.github.aleixrodriala.quadern.data.AppDatabase
 import io.github.aleixrodriala.quadern.data.NoteFiles
 import io.github.aleixrodriala.quadern.data.NotesRepository
 import io.github.aleixrodriala.quadern.data.SecretStore
+import io.github.aleixrodriala.quadern.data.ServiceStatus
 import io.github.aleixrodriala.quadern.data.SettingsRepository
 import io.github.aleixrodriala.quadern.insights.InsightsScheduler
 import io.github.aleixrodriala.quadern.insights.SummarizerFactory
@@ -49,8 +50,9 @@ class AppContainer(val context: Context) {
     val recording = RecordingController(context)
     // Notes waiting for a model start transcribing as soon as it's downloaded.
     val whisperModels = WhisperModels(context) { appScope.launch { repository.retryBlocked() } }
-    val providers = ProviderFactory(auth, secrets, whisperModels::createProvider)
-    val summarizers: SummarizerFactory = SummarizerFactory(auth, providers)
+    val serviceStatus = ServiceStatus(context)
+    val providers = ProviderFactory(auth, secrets, serviceStatus, whisperModels::createProvider)
+    val summarizers: SummarizerFactory = SummarizerFactory(auth, providers, serviceStatus)
     val signIn = SignInController(context, auth) { appScope.launch { repository.retryBlocked() } }
 
     /** Notes being converted from a shared audio file right now, with how far along (0..1). */

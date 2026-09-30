@@ -43,6 +43,7 @@ import io.github.aleixrodriala.quadern.ui.note.NoteScreen
 import io.github.aleixrodriala.quadern.ui.record.RecordScreen
 import io.github.aleixrodriala.quadern.ui.settings.SettingsScreen
 import io.github.aleixrodriala.quadern.ui.settings.SignInScreen
+import io.github.aleixrodriala.quadern.ui.welcome.WelcomeScreen
 import io.github.aleixrodriala.quadern.ui.theme.NoteTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -76,15 +77,23 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalContainer provides container) {
                     val nav = rememberNavController()
                     val route by pendingRoute.collectAsState()
-                    LaunchedEffect(route) {
-                        route?.let {
-                            pendingRoute.value = null
-                            nav.navigateSingle(it)
-                        }
-                    }
                     // Surface sets the default content color (onBackground) for all text and icons.
                     androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-                        AppNav(nav)
+                        // The first screen depends on a stored setting: wait the few ms it takes to read.
+                        val start by androidx.compose.runtime.produceState<String?>(null) {
+                            val s = container.settings.current()
+                            value = if (s.onboarded || container.auth.isSignedIn()) ROUTE_HOME else ROUTE_WELCOME
+                        }
+                        start?.let {
+                            AppNav(nav, it)
+                            // Only once the graph exists: a shared file can arrive on a cold start.
+                            LaunchedEffect(route) {
+                                route?.let { r ->
+                                    pendingRoute.value = null
+                                    nav.navigateSingle(r)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -115,6 +124,7 @@ class MainActivity : ComponentActivity() {
 
         const val EXTRA_ROUTE = "route"
         const val ROUTE_HOME = "home"
+        const val ROUTE_WELCOME = "welcome"
         const val ROUTE_RECORD = "record"
         const val ROUTE_SETTINGS = "settings"
         const val ROUTE_SIGN_IN = "signin"
@@ -130,7 +140,7 @@ private fun NavHostController.navigateSingle(route: String) {
 }
 
 @androidx.compose.runtime.Composable
-private fun AppNav(nav: NavHostController) {
+private fun AppNav(nav: NavHostController, startRoute: String) {
     val c = LocalContainer.current
     val context = androidx.compose.ui.platform.LocalContext.current
     var micDenied by remember { mutableStateOf(false) }
@@ -171,12 +181,27 @@ private fun AppNav(nav: NavHostController) {
 
     NavHost(
         navController = nav,
-        startDestination = MainActivity.ROUTE_HOME,
+        startDestination = startRoute,
         enterTransition = { slideInHorizontally(tween(260)) { it / 6 } + fadeIn(tween(260)) },
         exitTransition = { fadeOut(tween(180)) },
         popEnterTransition = { fadeIn(tween(220)) },
         popExitTransition = { slideOutHorizontally(tween(220)) { it / 6 } + fadeOut(tween(220)) },
     ) {
+        composable(MainActivity.ROUTE_WELCOME) {
+            // Leaves the welcome screen for good: back from home closes the app, not the welcome.
+            fun leave(route: String) = nav.navigate(route) {
+                popUpTo(MainActivity.ROUTE_WELCOME) { inclusive = true }
+                launchSingleTop = true
+            }
+            WelcomeScreen(
+                onSignIn = { nav.navigateSingle(MainActivity.ROUTE_SIGN_IN) },
+                onOpenSettings = {
+                    leave(MainActivity.ROUTE_HOME)
+                    nav.navigateSingle(MainActivity.ROUTE_SETTINGS)
+                },
+                onDone = { leave(MainActivity.ROUTE_HOME) },
+            )
+        }
         composable(MainActivity.ROUTE_HOME) { entry ->
             val searchRequest by entry.savedStateHandle.getStateFlow<String?>(KEY_SEARCH, null).collectAsState()
             HomeScreen(

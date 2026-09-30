@@ -3,6 +3,7 @@ package io.github.aleixrodriala.quadern.transcription
 import io.github.aleixrodriala.quadern.auth.ChatGptAuth
 import io.github.aleixrodriala.quadern.data.AppSettings
 import io.github.aleixrodriala.quadern.data.SecretStore
+import io.github.aleixrodriala.quadern.data.ServiceStatus
 import io.github.aleixrodriala.quadern.transcription.providers.AssemblyAiProvider
 import io.github.aleixrodriala.quadern.transcription.providers.ChatGptProvider
 import io.github.aleixrodriala.quadern.transcription.providers.DeepgramProvider
@@ -13,6 +14,7 @@ import io.github.aleixrodriala.quadern.transcription.providers.OpenAiCompatibleP
 class ProviderFactory(
     private val auth: ChatGptAuth,
     private val secrets: SecretStore,
+    private val status: ServiceStatus,
     private val local: LocalProviderSource,
 ) {
     /** Builds [id] from current settings, or throws [SttException.NotConfigured] saying what's missing. */
@@ -23,6 +25,8 @@ class ProviderFactory(
         return when (val kind = id.kind) {
             ProviderId.Kind.ChatGpt -> {
                 if (!auth.isSignedIn()) throw SttException.NotConfigured("Sign in with ChatGPT to transcribe")
+                val s = status.chatGpt()
+                if (!s.transcription) throw SttException.NotConfigured(ServiceStatus.pausedMessage(s, "transcription"))
                 ChatGptProvider(auth)
             }
             is ProviderId.Kind.OpenAiCompatible -> {

@@ -46,12 +46,15 @@ import androidx.compose.ui.unit.sp
 import io.github.aleixrodriala.quadern.auth.SignInController
 import io.github.aleixrodriala.quadern.ui.LocalContainer
 import io.github.aleixrodriala.quadern.ui.components.CircleIconButton
+import kotlinx.coroutines.launch
 
 @Composable
 fun SignInScreen(onDone: () -> Unit) {
     val c = LocalContainer.current
     val context = LocalContext.current
     val state by c.signIn.state.collectAsState()
+    val settings by c.settings.settings.collectAsState(initial = null)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showPaste by remember { mutableStateOf(false) }
     var pasted by remember { mutableStateOf("") }
 
@@ -74,6 +77,11 @@ fun SignInScreen(onDone: () -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp)) {
             CircleIconButton(Icons.Rounded.Close, "Close", { c.signIn.reset(); onDone() })
+        }
+        val consented = settings?.chatGptConsent ?: return@Column
+        if (!consented) {
+            Consent(onAccept = { scope.launch { c.settings.setChatGptConsent(true) } }, onDecline = { onDone() })
+            return@Column
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             Spacer(Modifier.height(24.dp))
@@ -190,3 +198,38 @@ fun SignInScreen(onDone: () -> Unit) {
         }
     }
 }
+
+/**
+ * What using the ChatGPT route means, said once and plainly before the first sign-in: it's not an
+ * official feature, it's your account, and your audio goes to OpenAI.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.Consent(onAccept: () -> Unit, onDecline: () -> Unit) {
+    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
+        Spacer(Modifier.height(24.dp))
+        Text("Before you sign in", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(24.dp))
+        for ((title, body) in CONSENT) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(20.dp))
+        }
+    }
+    Column(Modifier.padding(horizontal = 28.dp).padding(bottom = 16.dp)) {
+        Button(onClick = onAccept, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("I understand, continue") }
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onDecline, modifier = Modifier.fillMaxWidth()) { Text("Choose another way") }
+    }
+}
+
+private val CONSENT = listOf(
+    "It isn't an official OpenAI feature" to
+        "Quadern uses the dictation service inside ChatGPT, signed in as you. OpenAI doesn't offer it to other apps, so it could change or stop working at any time. Quadern is not made by OpenAI.",
+    "It's your ChatGPT account" to
+        "Transcribing counts as ChatGPT use on your plan, like dictating in the ChatGPT app. You sign in on OpenAI's own page; Quadern never sees your password.",
+    "Your audio goes to OpenAI" to
+        "OpenAI keeps it for a while, as it does with ChatGPT dictation. Nothing goes anywhere else.",
+    "Your notes are safe either way" to
+        "Recordings stay on your phone. If this stops working, switch to “On this phone” or an API key in Settings and transcribe them again.",
+)

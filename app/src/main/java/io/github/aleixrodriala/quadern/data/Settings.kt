@@ -31,6 +31,10 @@ data class AppSettings(
     /** Who writes them; null = the transcription service, when it can. */
     val summaryProvider: ProviderId? = null,
     val chatModels: Map<ProviderId, String> = emptyMap(),
+    /** The first-run choice of how to transcribe has been made. */
+    val onboarded: Boolean = false,
+    /** Read and accepted what using the ChatGPT route means (unofficial, audio to OpenAI). */
+    val chatGptConsent: Boolean = false,
 ) {
     fun modelFor(provider: ProviderId): String = models[provider]?.takeIf { it.isNotBlank() } ?: provider.defaultModel
     fun chatModelFor(provider: ProviderId): String = chatModels[provider]?.takeIf { it.isNotBlank() } ?: provider.chatModel.orEmpty()
@@ -55,6 +59,8 @@ class SettingsRepository(private val context: Context) {
         val whisperModel = stringPreferencesKey("whisper_model")
         val summarize = booleanPreferencesKey("summarize")
         val summaryProvider = stringPreferencesKey("summary_provider")
+        val onboarded = booleanPreferencesKey("onboarded")
+        val chatGptConsent = booleanPreferencesKey("chatgpt_consent")
         fun model(p: ProviderId) = stringPreferencesKey("model_${p.name}")
         fun chatModel(p: ProviderId) = stringPreferencesKey("chat_model_${p.name}")
     }
@@ -77,6 +83,8 @@ class SettingsRepository(private val context: Context) {
         summarize = this[Keys.summarize] ?: true,
         summaryProvider = ProviderId.fromKey(this[Keys.summaryProvider])?.takeIf { it.canSummarize },
         chatModels = ProviderId.entries.mapNotNull { p -> this[Keys.chatModel(p)]?.let { p to it } }.toMap(),
+        onboarded = this[Keys.onboarded] ?: false,
+        chatGptConsent = this[Keys.chatGptConsent] ?: false,
     )
 
     suspend fun setProvider(p: ProviderId) = context.dataStore.edit { it[Keys.provider] = p.name }
@@ -99,6 +107,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSummaryProvider(p: ProviderId?) = context.dataStore.edit {
         if (p == null) it.remove(Keys.summaryProvider) else it[Keys.summaryProvider] = p.name
     }
+    suspend fun setOnboarded(v: Boolean) = context.dataStore.edit { it[Keys.onboarded] = v }
+    suspend fun setChatGptConsent(v: Boolean) = context.dataStore.edit { it[Keys.chatGptConsent] = v }
     suspend fun setChatModel(p: ProviderId, model: String) = context.dataStore.edit {
         if (model.isBlank()) it.remove(Keys.chatModel(p)) else it[Keys.chatModel(p)] = model.trim()
     }

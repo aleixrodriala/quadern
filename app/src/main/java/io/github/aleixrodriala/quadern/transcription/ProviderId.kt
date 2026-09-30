@@ -98,7 +98,7 @@ enum class ProviderId(
         chatModel = "",
     ),
     LOCAL(
-        label = "On this device",
+        label = "On this phone",
         summary = "Whisper runs on your phone. Private and offline, slower",
         kind = Kind.Local,
     );

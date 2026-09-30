@@ -132,6 +132,10 @@ fun HomeScreen(
     }
 
     val needsSignIn = settings?.provider == ProviderId.CHATGPT && authLoaded && account == null
+    val installedModels by c.whisperModels.installed.collectAsState()
+    val downloads by c.whisperModels.downloads.collectAsState()
+    val localModel = settings?.takeIf { it.provider == ProviderId.LOCAL }?.whisperModel
+    val needsModel = localModel != null && localModel !in installedModels
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
@@ -158,7 +162,14 @@ fun HomeScreen(
                 )
             }
             if (needsSignIn && !searching) {
-                item(key = "signin") { SignInBanner(onSignIn) }
+                item(key = "signin") { Box(Modifier.animateItem()) { SignInBanner(onSignIn) } }
+            }
+            if (needsModel && !searching && localModel != null) {
+                item(key = "model") {
+                    Box(Modifier.animateItem()) {
+                        ModelBanner(c.whisperModels.model(localModel), downloads[localModel]) { c.whisperModels.download(localModel) }
+                    }
+                }
             }
             val list = notes
             if (list != null && list.isEmpty()) {
@@ -311,6 +322,62 @@ private fun SignInBanner(onSignIn: () -> Unit) {
                 )
             }
             TextButton(onClick = onSignIn) { Text("Sign in") }
+        }
+    }
+}
+
+/** While the on-device model downloads: how far along, and a way to resume if it stopped. */
+@Composable
+private fun ModelBanner(
+    model: io.github.aleixrodriala.quadern.transcription.local.WhisperModels.Model?,
+    download: io.github.aleixrodriala.quadern.transcription.local.WhisperModels.Download?,
+    onDownload: () -> Unit,
+) {
+    val running = download as? io.github.aleixrodriala.quadern.transcription.local.WhisperModels.Download.Running
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (running != null) "Getting ready to transcribe here" else "Transcribe on this phone",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        when {
+                            running != null -> "${running.done / 1_000_000} of ${running.total / 1_000_000} MB. You can record already."
+                            download is io.github.aleixrodriala.quadern.transcription.local.WhisperModels.Download.Failed ->
+                                "The download stopped. Notes wait until it's done."
+                            else -> "Download the ${model?.label ?: ""} model (${(model?.bytes ?: 0) / 1_000_000} MB). Notes wait until it's done."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (running == null) {
+                    TextButton(onClick = onDownload) {
+                        Text(if (download is io.github.aleixrodriala.quadern.transcription.local.WhisperModels.Download.Failed) "Resume" else "Download")
+                    }
+                }
+            }
+            if (running != null) {
+                val progress by androidx.compose.animation.core.animateFloatAsState(
+                    running.done.toFloat() / running.total.coerceAtLeast(1), tween(400), label = "model progress",
+                )
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().padding(end = 12.dp).height(3.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant,
+                    drawStopIndicator = {},
+                    gapSize = 0.dp,
+                )
+            }
         }
     }
 }

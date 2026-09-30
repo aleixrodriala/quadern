@@ -2,11 +2,12 @@ package io.github.aleixrodriala.quadern.insights
 
 import io.github.aleixrodriala.quadern.auth.ChatGptAuth
 import io.github.aleixrodriala.quadern.data.AppSettings
+import io.github.aleixrodriala.quadern.data.ServiceStatus
 import io.github.aleixrodriala.quadern.transcription.ProviderFactory
 import io.github.aleixrodriala.quadern.transcription.ProviderId
 import io.github.aleixrodriala.quadern.transcription.SttException
 
-class SummarizerFactory(private val auth: ChatGptAuth, private val providers: ProviderFactory) {
+class SummarizerFactory(private val auth: ChatGptAuth, private val providers: ProviderFactory, private val status: ServiceStatus) {
     /** Builds the summary writer from settings, or throws [SttException.NotConfigured] saying what's missing. */
     suspend fun create(settings: AppSettings): Summarizer {
         val id = settings.summarizer ?: throw SttException.NotConfigured(
@@ -19,6 +20,8 @@ class SummarizerFactory(private val auth: ChatGptAuth, private val providers: Pr
         return when (val kind = id.kind) {
             ProviderId.Kind.ChatGpt -> {
                 if (!auth.isSignedIn()) throw SttException.NotConfigured("Sign in with ChatGPT to get summaries")
+                val s = status.chatGpt()
+                if (!s.summaries) throw SttException.NotConfigured(ServiceStatus.pausedMessage(s, "summaries"))
                 ChatGptSummarizer({ auth.credentials(it) }, model, modelIsExplicit = settings.chatModels[id]?.isNotBlank() == true)
             }
             is ProviderId.Kind.OpenAiCompatible -> {

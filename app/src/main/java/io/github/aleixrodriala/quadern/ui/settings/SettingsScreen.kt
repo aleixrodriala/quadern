@@ -448,7 +448,7 @@ private val ProviderId.mode: Mode
         else -> Mode.Service
     }
 
-/** ChatGPT first and recommended; the other two ways right beside it, so they're easy to find. */
+/** The three ways side by side, each with its honest strength: none is hidden behind another. */
 @Composable
 private fun ModeChooser(selected: Mode, chatGptDetail: String?, onSelect: (Mode) -> Unit) {
     Surface(
@@ -461,10 +461,15 @@ private fun ModeChooser(selected: Mode, chatGptDetail: String?, onSelect: (Mode)
                 "ChatGPT",
                 chatGptDetail?.let { "Included with your plan · $it" } ?: "Included with your ChatGPT plan. No extra cost",
                 selected == Mode.ChatGpt,
-                badge = "Recommended",
+                badge = "Most accurate",
             ) { onSelect(Mode.ChatGpt) }
             HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            ModeRow("On this device", "Private and offline, using a Whisper model you download. Slower", selected == Mode.Device) { onSelect(Mode.Device) }
+            ModeRow(
+                "On this phone",
+                "Whisper runs here. Nothing leaves your phone, and it works offline. Slower",
+                selected == Mode.Device,
+                badge = "Most private",
+            ) { onSelect(Mode.Device) }
             HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ModeRow("Another service", "OpenAI API, Groq, Deepgram and more, with your own API key", selected == Mode.Service) { onSelect(Mode.Service) }
         }
