@@ -123,6 +123,11 @@ section .intro { margin-top: 1rem; max-width: var(--measure); color: var(--ink-2
 /* Languages */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(2rem, 5vw, 4rem); align-items: center; }
 .figure-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.trio-art { position: relative; }
+.trio-art img { display: block; width: 100%; height: auto; }
+/* The middle phone plays the app itself, laid exactly over its screenshot (591,2 → 518 px of 1700×1171). */
+.trio-live { position: absolute; left: 34.765%; top: 0.171%; width: 30.471%; height: auto; border-radius: 7.3% 7.3% 0 0 / 3.3% 3.3% 0 0; background: transparent; }
+@media (prefers-reduced-motion: reduce) { .trio-live { display: none; } }
 .shot { width: 100%; height: auto; max-width: 100%; border-radius: 1.4rem; border: 1px solid var(--line); display: block; }
 .wer { margin-top: 1.8rem; display: grid; gap: 0.6rem; max-width: 26rem; }
 .wer .bar { display: grid; grid-template-columns: 11.5rem minmax(0, 1fr) 3.5rem; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
@@ -227,8 +232,11 @@ footer nav a { color: var(--ink-2); }
         <p class="metaline mono">v0.1 beta · Android 10+ · free and open source (MIT) · no account · works offline</p>
       </div>
       <figure class="trio">
-        <img src="assets/hero.webp" width="1700" height="1171" alt="Three Quadern screens: the list of notes in English, Catalan and Spanish; the recording screen with a live waveform; and a finished note with its title, summary and tags">
-        <figcaption>Notes in English, Catalan and Spanish, a recording, and a finished note.</figcaption>
+        <div class="trio-art">
+          <img src="assets/hero.webp" width="1700" height="1171" alt="Three Quadern screens: the list of notes in English, Catalan and Spanish; the recording screen with a live waveform; and a finished note with its title, summary and tags">
+          <video class="trio-live" src="assets/hero-motion.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"></video>
+        </div>
+        <figcaption>Notes in English, Catalan and Spanish, a recording, and a finished note. The middle phone is a real screen recording.</figcaption>
       </figure>
     </div>
 

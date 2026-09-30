@@ -20,7 +20,7 @@ or keep everything on your phone with Whisper, offline.
 
 <br>
 
-<img src=".github/assets/hero.webp" width="100%" alt="Three Quadern screens: a list of notes in English, Catalan and Spanish; the recording screen with a live waveform; and a finished note with its title, summary and tags">
+<img src=".github/assets/hero-motion.webp" width="100%" alt="Three Quadern screens: a list of notes in English, Catalan and Spanish; the app in motion, recording a note and opening it; and a finished note with its title, summary and tags">
 
 </div>
 
