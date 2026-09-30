@@ -112,8 +112,11 @@ when the main one fails.
 > [!NOTE]
 > Quadern sends your audio to ChatGPT's own dictation service, signed in as you. OpenAI does
 > not offer that service to other apps, so it could change or stop working at any time.
-> Quadern says this plainly before you sign in. Quadern is not made by or affiliated with
-> OpenAI.
+> OpenAI's terms don't allow reaching ChatGPT this way, and its
+> [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+> program for other apps leaves transcription out, so in principle OpenAI could limit an
+> account that uses it. Quadern says this plainly before you sign in. Quadern is not made by
+> or affiliated with OpenAI.
 
 1. Choose **ChatGPT** and tap **Continue**. OpenAI's own page opens in your browser.
 2. Sign in there. Quadern never sees your password.
@@ -210,6 +213,14 @@ own API key.
 <summary><b>Which ChatGPT plans work?</b></summary>
 
 Tested with paid plans so far. If you use Free or Go, please tell us how it goes.
+</details>
+
+<details>
+<summary><b>Could it get my ChatGPT account in trouble?</b></summary>
+
+It could, in principle. OpenAI's terms don't allow reaching ChatGPT from other apps this way,
+and OpenAI can limit accounts that break its terms. If that worries you, transcribe on the
+phone or with an API key instead.
 </details>
 
 <details>

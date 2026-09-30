@@ -201,7 +201,7 @@ fun SignInScreen(onDone: () -> Unit) {
 
 /**
  * What using the ChatGPT route means, said once and plainly before the first sign-in: it's not an
- * official feature, it's your account, and your audio goes to OpenAI.
+ * official feature, it's your account (and its risk), and your audio goes to OpenAI.
  */
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.Consent(onAccept: () -> Unit, onDecline: () -> Unit) {
@@ -227,7 +227,7 @@ private val CONSENT = listOf(
     "It isn't an official OpenAI feature" to
         "Quadern uses the dictation service inside ChatGPT, signed in as you. OpenAI doesn't offer it to other apps, so it could change or stop working at any time. Quadern is not made by OpenAI.",
     "It's your ChatGPT account" to
-        "Transcribing counts as ChatGPT use on your plan, like dictating in the ChatGPT app. You sign in on OpenAI's own page; Quadern never sees your password.",
+        "Transcribing counts as ChatGPT use on your plan, like dictating in the ChatGPT app. OpenAI's terms don't allow reaching ChatGPT this way, so in principle it could limit your account for it. You sign in on OpenAI's own page; Quadern never sees your password.",
     "Your audio goes to OpenAI" to
         "OpenAI keeps it for a while, as it does with ChatGPT dictation. Nothing goes anywhere else.",
     "Your notes are safe either way" to
