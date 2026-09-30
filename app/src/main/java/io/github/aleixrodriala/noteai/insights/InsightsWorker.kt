@@ -60,7 +60,8 @@ class InsightsWorker(context: Context, params: WorkerParameters) : CoroutineWork
             try {
                 val result = safely { summarizer.summarize(note.transcript, tags) }
                 // Dropped if the transcript changed meanwhile; the loop then summarizes the new text.
-                val saved = dao.applyInsights(note.id, note.insightsGen, note.transcript, result.title, result.summary, result.tags.joinToString(","))
+                val summary = if (InsightsPrompt.wantsSummary(note.transcript)) result.summary else ""
+                val saved = dao.applyInsights(note.id, note.insightsGen, note.transcript, result.title, summary, result.tags.joinToString(","))
                 if (saved > 0) result.tags.forEach { if (it !in tags) tags += it }
             } catch (e: SttException) {
                 val attempts = note.insightsAttempts + 1

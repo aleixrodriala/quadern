@@ -218,32 +218,38 @@ class RecordingService : Service() {
         lifecycle.withLock {
             val s = session ?: return@withLock
             session = null
-            s.tickJob?.cancel()
-            val exited = withContext(Dispatchers.IO) { s.engine.stop() }
-            s.wakeLock?.let { if (it.isHeld) it.release() }
-            unregisterSilenceWatcher()
-            container.recording.publish(null)
-            val repo = container.repository
-            if (!exited) {
-                // The audio thread is wedged inside the codec. Leave the file alone: finalizing now
-                // could delete it under a thread that's still writing. Recovery handles it on the
-                // next start (the note stays "recording" and unowned until then).
-                Log.e(TAG, "Recorder thread didn't stop; deferring finalize to recovery")
-                container.recording.release(s.noteId)
-                container.recording.emit(RecordingController.Event.Failed(getString(R.string.error_recording_failed), s.noteId))
-            } else if (discard) {
-                repo.delete(s.noteId)
-                container.recording.release(s.noteId)
-            } else {
-                runCatching { repo.finalizeRecording(s.noteId, interrupted = error != null) }
-                    .onFailure { Log.e(TAG, "Finalize failed; recovery will retry", it) }
-                container.recording.release(s.noteId)
-                val event = if (error != null) {
-                    RecordingController.Event.Failed(error.message ?: getString(R.string.error_recording_failed), s.noteId)
+            // The recorder screen keeps its last frame until the note is saved, instead of blanking.
+            container.recording.setFinishing(true)
+            try {
+                s.tickJob?.cancel()
+                val exited = withContext(Dispatchers.IO) { s.engine.stop() }
+                s.wakeLock?.let { if (it.isHeld) it.release() }
+                unregisterSilenceWatcher()
+                container.recording.publish(null)
+                val repo = container.repository
+                if (!exited) {
+                    // The audio thread is wedged inside the codec. Leave the file alone: finalizing now
+                    // could delete it under a thread that's still writing. Recovery handles it on the
+                    // next start (the note stays "recording" and unowned until then).
+                    Log.e(TAG, "Recorder thread didn't stop; deferring finalize to recovery")
+                    container.recording.release(s.noteId)
+                    container.recording.emit(RecordingController.Event.Failed(getString(R.string.error_recording_failed), s.noteId))
+                } else if (discard) {
+                    repo.delete(s.noteId)
+                    container.recording.release(s.noteId)
                 } else {
-                    RecordingController.Event.Finished(s.noteId)
+                    runCatching { repo.finalizeRecording(s.noteId, interrupted = error != null) }
+                        .onFailure { Log.e(TAG, "Finalize failed; recovery will retry", it) }
+                    container.recording.release(s.noteId)
+                    val event = if (error != null) {
+                        RecordingController.Event.Failed(error.message ?: getString(R.string.error_recording_failed), s.noteId)
+                    } else {
+                        RecordingController.Event.Finished(s.noteId)
+                    }
+                    container.recording.emit(event)
                 }
-                container.recording.emit(event)
+            } finally {
+                container.recording.setFinishing(false)
             }
             ServiceCompat.stopForeground(this@RecordingService, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()

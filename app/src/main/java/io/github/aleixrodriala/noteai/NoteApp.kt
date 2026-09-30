@@ -105,7 +105,9 @@ class NoteApp : Application() {
         container.appScope.launch {
             // Copies of shared files a previous process was importing when it died (not this one's).
             cacheDir.listFiles { f -> f.name.startsWith("import-") && f.lastModified() < started }?.forEach { it.delete() }
-            // Anything left "recording" by a previous process died with it: save it as a note.
+            // Audio whose note a power cut undid gets its note back, then anything left "recording"
+            // by a previous process died with it: save it as a note.
+            container.repository.adoptOrphans(started, container.recording::isLive)
             container.repository.recoverInterrupted(container.recording::isLive)
             container.repository.resumeTranscriptions()
         }

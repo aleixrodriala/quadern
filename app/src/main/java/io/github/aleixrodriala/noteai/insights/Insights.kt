@@ -30,7 +30,7 @@ object InsightsPrompt {
 
         Answer with a JSON object with these keys:
         - title: a short, specific title of 2 to 6 words, the way a person would name the note. No quotes, no final period, no emoji.
-        - summary: what the note is about, in plain prose, as short as it can be while still naming every main topic, decision and plan. Usually 2 to 4 sentences, under 60 words. Only a long note with many topics gets a second short paragraph, and never more than 120 words in total. Start directly with the content (for example "Reflections on..." or "Plan to..."), never with "The speaker" or "In this note". No lists, headings or markdown. If the transcript is only a sentence or two, return an empty summary.
+        - summary: what the note is about, in plain prose, as short as it can be while still naming every main topic, decision and plan. Usually 2 to 4 sentences, under 60 words. Only a long note with many topics gets a second short paragraph, and never more than 120 words in total. Start directly with the content (for example "Reflections on..." or "Plan to..."), never with "The speaker" or "In this note". No lists, headings or markdown. If the input says the note is short, return an empty summary.
         - tags: 1 to 3 short lowercase topic tags of one or two words, without "#". Reuse an existing tag only when it really fits; otherwise make a new one.
 
         Write everything in the language of the transcript.
@@ -51,7 +51,27 @@ object InsightsPrompt {
         }
     }
 
+    /** Notes shorter than this get a title and tags but no summary: it would only repeat them. */
+    const val MIN_SUMMARY_WORDS = 40
+
+    /**
+     * Decided here rather than by the model, which was inconsistent: it skipped a five-sentence
+     * recipe and summarized a one-line errand. Chinese and Japanese don't space words; about 1.5
+     * characters make one.
+     */
+    fun wantsSummary(transcript: String): Boolean {
+        val words = transcript.split(Regex("\\s+")).count { it.isNotEmpty() }
+        val cjk = transcript.count { Character.UnicodeScript.of(it.code) in CJK_SCRIPTS }
+        return words + cjk * 2 / 3 >= MIN_SUMMARY_WORDS
+    }
+
+    private val CJK_SCRIPTS = setOf(
+        Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA,
+        Character.UnicodeScript.KATAKANA, Character.UnicodeScript.THAI,
+    )
+
     fun input(transcript: String, existingTags: List<String>): String = buildString {
+        if (!wantsSummary(transcript)) append("The note is short: leave the summary empty.\n\n")
         if (existingTags.isNotEmpty()) append("Existing tags: ").append(existingTags.joinToString(", ")).append("\n\n")
         append("Transcript:\n")
         append(clip(transcript.trim()))

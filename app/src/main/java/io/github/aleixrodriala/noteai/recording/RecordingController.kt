@@ -35,6 +35,10 @@ class RecordingController(private val context: Context) {
     private val _starting = MutableStateFlow(false)
     val starting: StateFlow<Boolean> = _starting.asStateFlow()
 
+    private val _finishing = MutableStateFlow(false)
+    /** Stop or discard was requested and the service is still saving; the result comes as an [Event] (or none, when discarded). */
+    val finishing: StateFlow<Boolean> = _finishing.asStateFlow()
+
     private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 4)
     val events: SharedFlow<Event> = _events.asSharedFlow()
 
@@ -77,6 +81,10 @@ class RecordingController(private val context: Context) {
     internal fun publish(live: Live?) {
         _live.value = live
         if (live != null) _starting.value = false
+    }
+
+    internal fun setFinishing(value: Boolean) {
+        _finishing.value = value
     }
 
     internal fun startFailed() {

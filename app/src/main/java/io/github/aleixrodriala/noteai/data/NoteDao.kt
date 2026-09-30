@@ -4,7 +4,10 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 private const val WITH_PROGRESS = """
@@ -56,6 +59,16 @@ interface NoteDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertNote(note: Note)
+
+    @Query("SELECT id FROM notes")
+    suspend fun allIds(): List<String>
+
+    /**
+     * Puts everything committed so far on disk. In WAL mode Android doesn't fsync each commit, so a
+     * power cut can undo recent ones; a checkpoint syncs the log and the database file.
+     */
+    @RawQuery
+    suspend fun checkpoint(query: SupportSQLiteQuery = SimpleSQLiteQuery("PRAGMA wal_checkpoint(FULL)")): Int
 
     @Update
     suspend fun updateNote(note: Note)

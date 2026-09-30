@@ -19,6 +19,20 @@ import org.junit.Before
 import org.junit.Test
 
 class InsightsPromptTest {
+    @Test fun shortNotesGetNoSummary() {
+        // The errand the model summarized, and the recipe it didn't (both from device tests).
+        val errand = "Recorda comprar llet, pa i piles per al comandament abans de les set."
+        val recipe = "L'escalivada de l'àvia. Poses els pebrots, les albergínies i la ceba al forn, a 200 graus. " +
+            "Una hora, més o menys, girant-ho a la meitat. Després ho deixes refredar tapat dins d'un drap perquè " +
+            "es pelin sols. Ho peles, ho talles a tires i hi poses oli bo i sal. Millor l'endemà, freda i amb pa torrat."
+        assertEquals(false, InsightsPrompt.wantsSummary(errand))
+        assertEquals(true, InsightsPrompt.wantsSummary(recipe))
+        assertTrue(InsightsPrompt.input(errand, emptyList()).startsWith("The note is short"))
+        assertEquals(false, InsightsPrompt.input(recipe, emptyList()).contains("The note is short"))
+        // Unspaced scripts count by characters.
+        assertEquals(true, InsightsPrompt.wantsSummary("明日は朝九時に駅前のカフェで田中さんと会って、新しいプロジェクトの予算とスケジュールについて相談する。その後、資料を修正して金曜日までに送る。"))
+    }
+
     @Test fun parsesPlainJson() {
         val r = InsightsPrompt.parse("""{"title":"Plan the week","summary":"Plan to run twice a week.","tags":["Health","#running"]}""")
         assertEquals("Plan the week", r.title)
@@ -67,10 +81,10 @@ class InsightsPromptTest {
     }
 
     @Test fun inputKeepsStartAndEndOfHugeTranscripts() {
-        val text = "a".repeat(100_000) + "b".repeat(100_000)
+        val text = "aaaa ".repeat(20_000) + "bbbb ".repeat(20_000)
         val input = InsightsPrompt.input(text, listOf("x", "y"))
         assertTrue(input.startsWith("Existing tags: x, y\n\nTranscript:\naaa"))
-        assertTrue(input.endsWith("bbb"))
+        assertTrue(input.endsWith("bbbb"))
         assertTrue("[…]" in input)
         assertTrue(input.length < InsightsPrompt.MAX_TRANSCRIPT_CHARS + 200)
     }

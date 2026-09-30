@@ -63,11 +63,18 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val live by c.recording.live.collectAsState()
     val starting by c.recording.starting.collectAsState()
+    val finishing by c.recording.finishing.collectAsState()
+    // After Stop, the screen holds its last frame while the note is saved, then leaves once.
+    val lastLive = remember { arrayOfNulls<io.github.aleixrodriala.noteai.recording.RecordingController.Live>(1) }
+    live?.let { lastLive[0] = it }
+    var left by remember { mutableStateOf(false) }
     val extra = LocalExtraColors.current
     var confirmDiscard by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         c.recording.events.collect { e ->
+            if (left) return@collect
+            left = true
             when (e) {
                 is io.github.aleixrodriala.noteai.recording.RecordingController.Event.Finished -> onFinished(e.noteId)
                 is io.github.aleixrodriala.noteai.recording.RecordingController.Event.Failed ->
@@ -76,14 +83,27 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
         }
     }
     // Nothing is recording (stopped from the notification, or discarded): leave.
-    LaunchedEffect(live == null, starting) {
-        if (live == null && !starting) {
+    LaunchedEffect(live == null, starting, finishing) {
+        if (live == null && !starting && !finishing && !left) {
             kotlinx.coroutines.delay(400)
-            if (c.recording.live.value == null && !c.recording.starting.value) onMinimize()
+            val r = c.recording
+            if (!left && r.live.value == null && !r.starting.value && !r.finishing.value) {
+                left = true
+                onMinimize()
+            }
         }
     }
 
-    val state = live
+    val state = live ?: lastLive[0].takeIf { finishing || left }
+    // Saving is instant for most notes; say so only when it isn't (a long recording being packed).
+    var slowSave by remember { mutableStateOf(false) }
+    LaunchedEffect(finishing) {
+        if (finishing) {
+            kotlinx.coroutines.delay(600)
+            slowSave = true
+        }
+    }
+    val saving = live == null && state != null
     val paused = state?.paused == true
     val pulse = rememberInfiniteTransition(label = "pulse")
     val dotAlpha by pulse.animateFloat(1f, 0.25f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "dot")
@@ -105,13 +125,14 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Dot(
                 if (paused) MaterialTheme.colorScheme.outline else extra.record,
-                modifier = Modifier.alpha(if (paused) 1f else dotAlpha),
+                modifier = Modifier.alpha(if (paused || saving) 1f else dotAlpha),
                 size = 10.dp,
             )
             Spacer(Modifier.width(10.dp))
             Text(
                 when {
                     state == null -> "Starting…"
+                    saving && slowSave -> "Saving…"
                     state.silenced -> "Microphone in use by another app"
                     paused -> "Paused"
                     else -> "Recording"
@@ -136,7 +157,7 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
             levels = state?.levels.orEmpty(),
             levelCount = state?.levelCount ?: 0,
             color = waveColor,
-            active = state != null && !paused,
+            active = live != null && !paused,
             // Edge to edge, past the screen padding: bars flow in from the edge and out of it.
             modifier = Modifier.fillMaxWidth().height(200.dp).layout { m, c ->
                 val bleed = 24.dp.roundToPx() * 2
@@ -160,7 +181,7 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
         ) {
             CircleIconButton(
                 Icons.Rounded.DeleteOutline, "Discard", { confirmDiscard = true },
-                size = 60.dp, iconSize = 26.dp, enabled = state != null,
+                size = 60.dp, iconSize = 26.dp, enabled = live != null && !finishing,
             )
             CircleIconButton(
                 if (paused) Icons.Rounded.Mic else Icons.Rounded.Pause,
@@ -172,14 +193,14 @@ fun RecordScreen(onMinimize: () -> Unit, onFinished: (String) -> Unit) {
                     )
                     if (paused) c.recording.resume() else c.recording.pause()
                 },
-                size = 76.dp, iconSize = 32.dp, enabled = state != null,
+                size = 76.dp, iconSize = 32.dp, enabled = live != null && !finishing,
             )
             CircleIconButton(
                 Icons.Rounded.Check, "Stop and save", {
                     haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
                     c.recording.stop()
                 },
-                size = 60.dp, iconSize = 28.dp, enabled = state != null,
+                size = 60.dp, iconSize = 28.dp, enabled = live != null && !finishing,
                 container = MaterialTheme.colorScheme.primary, content = MaterialTheme.colorScheme.onPrimary,
             )
         }

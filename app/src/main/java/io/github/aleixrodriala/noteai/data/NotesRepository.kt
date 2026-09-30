@@ -55,7 +55,13 @@ class NotesRepository(
         val note = Note(id = id, createdAt = now, updatedAt = now)
         files.dir(note.id)
         dao.insertNote(note)
+        durable()
         return note
+    }
+
+    /** Makes the last commits survive a power cut (see [NoteDao.checkpoint]). */
+    private suspend fun durable() {
+        runCatching { dao.checkpoint() }.onFailure { Log.w(TAG, "Checkpoint failed", it) }
     }
 
     suspend fun updateRecordingProgress(id: String, frames: Long) =
@@ -126,10 +132,9 @@ class NotesRepository(
             val levels = files.readLevels(id)
             val levelCount = minOf(levels.size, ((durationMs + AudioSpec.LEVEL_INTERVAL_MS - 1) / AudioSpec.LEVEL_INTERVAL_MS).toInt())
             sealChunksLocked(id, levels, levelCount, frames, final = true)
-            withContext(Dispatchers.IO) {
-                AdtsFrameSource(adts).use { src -> M4aWriter.write(src, 0, frames, m4a) }
-                adts.delete()
-            }
+            // The ADTS stream stays until the finished note is on disk: a power cut before that
+            // simply finalizes again from it.
+            withContext(Dispatchers.IO) { AdtsFrameSource(adts).use { src -> M4aWriter.write(src, 0, frames, m4a) } }
         } else if (!m4a.exists()) {
             Log.w(TAG, "Recording $id has no audio file, removing it")
             dao.deleteNote(id)
@@ -156,12 +161,14 @@ class NotesRepository(
                 recordingState = RecordingState.RECORDED,
                 interrupted = fresh.interrupted || interrupted,
                 durationMs = durationMs,
-                sizeBytes = files.sizeOf(id),
+                sizeBytes = files.sizeOf(id) - (if (adts.exists() && m4a.exists()) adts.length() else 0),
                 transcriptionStatus = status,
                 transcriptionError = if (status == TranscriptionStatus.FAILED) firstFailed?.lastError else fresh.transcriptionError,
                 updatedAt = System.currentTimeMillis(),
             )
         )
+        durable()
+        withContext(Dispatchers.IO) { adts.delete() }
         if (status == TranscriptionStatus.DONE) assembleLocked(id)
         if (status == TranscriptionStatus.QUEUED) scheduler.enqueue(now = true)
     }
@@ -179,6 +186,48 @@ class NotesRepository(
             recovered++
         }
         return recovered
+    }
+
+    /**
+     * Finds audio on disk that has no note (a power cut undid the row, or the app died between
+     * creating the folder and the row) and turns it into an interrupted note. Only folders last
+     * written before [startedAt] count, so nothing this process is recording or importing is touched.
+     */
+    suspend fun adoptOrphans(startedAt: Long, isLive: (String) -> Boolean): Int {
+        val known = dao.allIds().toHashSet()
+        var adopted = 0
+        for (dir in files.noteDirs()) {
+            val id = dir.name
+            if (id in known || isLive(id)) continue
+            val adts = files.adts(id)
+            val m4a = files.m4a(id)
+            val newest = dir.listFiles()?.maxOfOrNull { it.lastModified() } ?: dir.lastModified()
+            if (newest >= startedAt) continue
+            val audio = when {
+                adts.exists() && adts.length() > 0 -> adts
+                m4a.exists() && m4a.length() > 0 -> m4a
+                else -> {
+                    // An empty folder: a recording that never got its first second of audio.
+                    files.delete(id)
+                    continue
+                }
+            }
+            if (audio == m4a) {
+                // Finished audio without its note: finalizing needs the stream, so it can't be
+                // re-planned; keep the file where the user can still find it rather than lose it.
+                Log.w(TAG, "Orphaned finished audio $id; leaving it for manual recovery")
+                continue
+            }
+            val durationMs = withContext(Dispatchers.IO) { AudioSpec.frameToMs(AdtsIndex.scan(adts).frameCount) }
+            val createdAt = (audio.lastModified() - durationMs).coerceAtLeast(0)
+            Log.w(TAG, "Adopting orphaned recording $id (${durationMs} ms)")
+            runCatching {
+                dao.insertNote(Note(id = id, createdAt = createdAt, updatedAt = createdAt, durationMs = durationMs))
+                durable()
+                adopted++
+            }.onFailure { Log.e(TAG, "Couldn't adopt $id", it) }
+        }
+        return adopted
     }
 
     /** Re-queues work that was in flight when the process died, and nudges the queue. */
@@ -308,6 +357,8 @@ class NotesRepository(
     }
 
     suspend fun delete(id: String) {
+        // Folder out of the way first: if the process dies next, the note can't return as an orphan.
+        withContext(Dispatchers.IO) { files.trash(id) }
         mutex.withLock { dao.deleteNote(id) }
         withContext(Dispatchers.IO) { files.delete(id) }
     }
