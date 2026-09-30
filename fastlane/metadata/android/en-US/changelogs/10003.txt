@@ -1,0 +1,2 @@
+Third beta.
+- Swiping a note away feels much better: the note lifts off as a card, snaps free with a tick when letting go would delete it, and the list closes up smoothly behind it. Undo slides it back in from the side it left.
