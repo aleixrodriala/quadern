@@ -1,0 +1,4 @@
+Fourth beta.
+- Record with a headset or another microphone: when one is connected, the recorder shows which microphone is recording. Tap it to switch, even in the middle of a note. Your choice is used again whenever it's connected.
+- Music pauses while you record, and picks up again when you stop.
+- Fixed on Android 10 to 12: notes weren't finished or transcribed after you stopped recording. The audio was kept, and those notes finish when you open this version.

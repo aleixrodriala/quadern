@@ -16,7 +16,7 @@ val hasKeystore = keystoreProps.getProperty("storeFile") != null
 
 val appVersion = "0.1.0"
 // Shown in the app and on the release; the tag is v<appVersion><suffix>, e.g. v0.1.0-beta.1.
-val appVersionSuffix = "-beta.3"
+val appVersionSuffix = "-beta.4"
 
 android {
     namespace = "io.github.aleixrodriala.quadern"
