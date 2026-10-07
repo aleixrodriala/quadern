@@ -35,6 +35,8 @@ data class AppSettings(
     val onboarded: Boolean = false,
     /** Read and accepted what using the ChatGPT route means (unofficial, audio to OpenAI). */
     val chatGptConsent: Boolean = false,
+    /** The microphone last picked for a recording (a Microphones.Mic key), used whenever it's connected. */
+    val microphone: String? = null,
 ) {
     fun modelFor(provider: ProviderId): String = models[provider]?.takeIf { it.isNotBlank() } ?: provider.defaultModel
     fun chatModelFor(provider: ProviderId): String = chatModels[provider]?.takeIf { it.isNotBlank() } ?: provider.chatModel.orEmpty()
@@ -61,6 +63,7 @@ class SettingsRepository(private val context: Context) {
         val summaryProvider = stringPreferencesKey("summary_provider")
         val onboarded = booleanPreferencesKey("onboarded")
         val chatGptConsent = booleanPreferencesKey("chatgpt_consent")
+        val microphone = stringPreferencesKey("microphone")
         fun model(p: ProviderId) = stringPreferencesKey("model_${p.name}")
         fun chatModel(p: ProviderId) = stringPreferencesKey("chat_model_${p.name}")
     }
@@ -85,6 +88,7 @@ class SettingsRepository(private val context: Context) {
         chatModels = ProviderId.entries.mapNotNull { p -> this[Keys.chatModel(p)]?.let { p to it } }.toMap(),
         onboarded = this[Keys.onboarded] ?: false,
         chatGptConsent = this[Keys.chatGptConsent] ?: false,
+        microphone = this[Keys.microphone],
     )
 
     suspend fun setProvider(p: ProviderId) = context.dataStore.edit { it[Keys.provider] = p.name }
@@ -109,6 +113,7 @@ class SettingsRepository(private val context: Context) {
     }
     suspend fun setOnboarded(v: Boolean) = context.dataStore.edit { it[Keys.onboarded] = v }
     suspend fun setChatGptConsent(v: Boolean) = context.dataStore.edit { it[Keys.chatGptConsent] = v }
+    suspend fun setMicrophone(key: String) = context.dataStore.edit { it[Keys.microphone] = key }
     suspend fun setChatModel(p: ProviderId, model: String) = context.dataStore.edit {
         if (model.isBlank()) it.remove(Keys.chatModel(p)) else it[Keys.chatModel(p)] = model.trim()
     }

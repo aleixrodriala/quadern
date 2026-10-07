@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import android.net.Uri
 import io.github.aleixrodriala.quadern.audio.AudioImporter
+import io.github.aleixrodriala.quadern.audio.Microphones
 import io.github.aleixrodriala.quadern.auth.ChatGptAuth
 import io.github.aleixrodriala.quadern.auth.SignInController
 import io.github.aleixrodriala.quadern.data.AppDatabase
@@ -49,6 +50,7 @@ class AppContainer(val context: Context) {
         summarizers.isReady(settings.current())
     }
     val recording = RecordingController(context)
+    val microphones = Microphones(context)
     // Notes waiting for a model start transcribing as soon as it's downloaded.
     val whisperModels = WhisperModels(context) { appScope.launch { repository.retryBlocked() } }
     val serviceStatus = ServiceStatus(context)

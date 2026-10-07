@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
 import android.os.Build
@@ -19,7 +21,9 @@ import io.github.aleixrodriala.quadern.MainActivity
 import io.github.aleixrodriala.quadern.NoteApp
 import io.github.aleixrodriala.quadern.R
 import io.github.aleixrodriala.quadern.audio.AudioSpec
+import io.github.aleixrodriala.quadern.audio.Microphones
 import io.github.aleixrodriala.quadern.audio.RecorderEngine
+import io.github.aleixrodriala.quadern.audio.ScoLink
 import io.github.aleixrodriala.quadern.util.Notifications
 import io.github.aleixrodriala.quadern.util.formatDuration
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +51,7 @@ class RecordingService : Service() {
     private val container by lazy { (application as NoteApp).container }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lifecycle = Mutex()
+    private val sco by lazy { ScoLink(this) }
 
     private var session: Session? = null
 
@@ -55,6 +60,18 @@ class RecordingService : Service() {
         @Volatile var silenced = false
         var tickJob: Job? = null
         var wakeLock: PowerManager.WakeLock? = null
+
+        // What's being recorded from, as Android says, and how a picked microphone is doing.
+        @Volatile var mic: Microphones.Mic? = null
+        @Volatile var micConnecting: Microphones.Mic? = null
+        @Volatile var micUnavailable: Microphones.Mic? = null
+
+        // Changed only under the lifecycle lock.
+        /** The microphone picked for this note, while it's connected; null leaves it to Android. */
+        var chosen: AudioDeviceInfo? = null
+        /** The Bluetooth headset whose call link was asked for, and whether it's up yet. */
+        var scoFor: AudioDeviceInfo? = null
+        var scoUp = false
     }
 
     /** Growable byte buffer the audio thread appends to and the service snapshots. */
@@ -93,6 +110,7 @@ class RecordingService : Service() {
             ACTION_RESUME -> scope.launch { setPaused(false) }
             ACTION_STOP -> scope.launch { finish(discard = false) }
             ACTION_DISCARD -> scope.launch { finish(discard = true) }
+            ACTION_SET_MIC -> intent.getStringExtra(EXTRA_MIC)?.let { key -> scope.launch { setMic(key) } }
             null -> {
                 // Restarted by the system after being killed mid-recording. We can't reopen the mic
                 // from the background, but everything recorded so far is on disk: save it.
@@ -128,6 +146,8 @@ class RecordingService : Service() {
             Log.e(TAG, "Couldn't start recording", e)
             withContext(NonCancellable) {
                 session = null
+                unregisterAudioWatchers()
+                sco.disconnect()
                 container.recording.release(id)
                 runCatching { container.repository.finalizeRecording(id, interrupted = true) }
                 container.recording.emit(RecordingController.Event.Failed(getString(R.string.error_mic_start), null))
@@ -152,13 +172,28 @@ class RecordingService : Service() {
             override fun onFatalError(error: Throwable) {
                 scope.launch { finish(discard = false, error = error) }
             }
+
+            override fun onRouted(device: AudioDeviceInfo) {
+                val mic = Microphones.describe(device) ?: return
+                if (mic != s.mic) {
+                    s.mic = mic
+                    publish(s)
+                }
+            }
+
+            override fun onDeviceFailed(device: AudioDeviceInfo) {
+                scope.launch { micGone(s, device) }
+            }
         })
         s = Session(note.id, engine)
         s.wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "quadern:recording")
             .apply { setReferenceCounted(false); acquire(12 * 60 * 60 * 1000L) }
         session = s
-        registerSilenceWatcher()
+        registerAudioWatchers()
+        // The microphone picked last time, if it's connected.
+        s.chosen = container.settings.current().microphone?.let(container.microphones::find)
+        applyMic(s)
         engine.start()
         publish(s)
         s.tickJob = scope.launch { tick(s) }
@@ -174,6 +209,9 @@ class RecordingService : Service() {
                 levels = levels,
                 levelCount = levelCount,
                 silenced = s.silenced,
+                mic = s.mic,
+                micConnecting = s.micConnecting,
+                micUnavailable = s.micUnavailable,
             )
         )
     }
@@ -214,6 +252,73 @@ class RecordingService : Service() {
         publish(s)
     }
 
+    // --- which microphone ---
+
+    private suspend fun setMic(key: String) {
+        container.settings.setMicrophone(key)
+        lifecycle.withLock {
+            val s = session ?: return@withLock
+            s.chosen = container.microphones.find(key)
+            s.micUnavailable = null
+            applyMic(s)
+            publish(s)
+        }
+    }
+
+    /**
+     * Points the recorder at the chosen microphone. A classic Bluetooth headset first needs its call
+     * link; the phone records until it's up, so no word waits on it.
+     */
+    private fun applyMic(s: Session) {
+        val chosen = s.chosen
+        val headset = chosen?.takeIf { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+        if (headset != null && s.scoFor?.id != headset.id) {
+            s.scoFor = headset
+            s.scoUp = false
+            sco.connect(headset) { up -> scope.launch { scoChanged(s, headset, up) } }
+        }
+        s.engine.setDevice(if (headset != null && !s.scoUp) null else chosen)
+        if (headset == null && s.scoFor != null) {
+            // The recorder is off the headset now: let it go back to music.
+            s.scoFor = null
+            s.scoUp = false
+            sco.disconnect()
+        }
+        s.micConnecting = headset?.takeIf { !s.scoUp }?.let(Microphones::describe)
+    }
+
+    private suspend fun scoChanged(s: Session, headset: AudioDeviceInfo, up: Boolean) {
+        // Didn't come up in time, or a call took it: recording a silent link would lose everything.
+        if (!up) return micGone(s, headset)
+        lifecycle.withLock {
+            if (session !== s || s.scoFor?.id != headset.id) return@withLock
+            s.scoUp = true
+            applyMic(s)
+            publish(s)
+        }
+    }
+
+    /** [device] stopped working or went away: carry on with Android's choice, and say so. */
+    private suspend fun micGone(s: Session, device: AudioDeviceInfo) = lifecycle.withLock {
+        if (session !== s || s.chosen?.id != device.id) return@withLock
+        s.chosen = null
+        s.micUnavailable = Microphones.describe(device)
+        applyMic(s)
+        publish(s)
+    }
+
+    /** The microphone picked last time just connected, or came back: record with it. */
+    private suspend fun micAdded(s: Session, added: List<AudioDeviceInfo>) {
+        val key = container.settings.current().microphone ?: return
+        lifecycle.withLock {
+            if (session !== s || s.chosen != null) return@withLock
+            s.chosen = Microphones.usable(added, Microphones::describe).firstOrNull { it.second.key == key }?.first ?: return@withLock
+            s.micUnavailable = null
+            applyMic(s)
+            publish(s)
+        }
+    }
+
     private suspend fun finish(discard: Boolean, error: Throwable? = null) = withContext(NonCancellable) {
         lifecycle.withLock {
             val s = session ?: return@withLock
@@ -224,7 +329,8 @@ class RecordingService : Service() {
                 s.tickJob?.cancel()
                 val exited = withContext(Dispatchers.IO) { s.engine.stop() }
                 s.wakeLock?.let { if (it.isHeld) it.release() }
-                unregisterSilenceWatcher()
+                unregisterAudioWatchers()
+                if (s.scoFor != null) sco.disconnect()
                 container.recording.publish(null)
                 val repo = container.repository
                 if (!exited) {
@@ -271,14 +377,31 @@ class RecordingService : Service() {
         }
     }
 
-    private fun registerSilenceWatcher() {
-        runCatching {
-            (getSystemService(AUDIO_SERVICE) as AudioManager).registerAudioRecordingCallback(recordingCallback, Handler(Looper.getMainLooper()))
+    // --- microphones coming and going ---
+
+    private val deviceCallback = object : AudioDeviceCallback() {
+        // Also called once on registration, with everything already connected.
+        override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) {
+            val s = session ?: return
+            scope.launch { micAdded(s, added.toList()) }
+        }
+
+        override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) {
+            val s = session ?: return
+            removed.forEach { scope.launch { micGone(s, it) } }
         }
     }
 
-    private fun unregisterSilenceWatcher() {
-        runCatching { (getSystemService(AUDIO_SERVICE) as AudioManager).unregisterAudioRecordingCallback(recordingCallback) }
+    private fun registerAudioWatchers() {
+        val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+        runCatching { audio.registerAudioRecordingCallback(recordingCallback, Handler(Looper.getMainLooper())) }
+        runCatching { audio.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper())) }
+    }
+
+    private fun unregisterAudioWatchers() {
+        val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+        runCatching { audio.unregisterAudioRecordingCallback(recordingCallback) }
+        runCatching { audio.unregisterAudioDeviceCallback(deviceCallback) }
     }
 
     // --- notification ---
@@ -335,7 +458,8 @@ class RecordingService : Service() {
             session = null
             s.tickJob?.cancel()
             s.wakeLock?.let { if (it.isHeld) it.release() }
-            unregisterSilenceWatcher()
+            unregisterAudioWatchers()
+            if (s.scoFor != null) sco.disconnect()
             container.recording.publish(null)
             // Stop and finalize off the main thread; only touch the file once the recorder exited.
             container.appScope.launch(Dispatchers.IO) {
@@ -353,6 +477,8 @@ class RecordingService : Service() {
         const val ACTION_RESUME = "io.github.aleixrodriala.quadern.RESUME"
         const val ACTION_STOP = "io.github.aleixrodriala.quadern.STOP"
         const val ACTION_DISCARD = "io.github.aleixrodriala.quadern.DISCARD"
+        const val ACTION_SET_MIC = "io.github.aleixrodriala.quadern.SET_MIC"
+        const val EXTRA_MIC = "mic"
         private const val TAG = "RecordingService"
         private const val LIVE_LEVELS = 120
         private const val MIN_FREE_BYTES = 50L * 1024 * 1024

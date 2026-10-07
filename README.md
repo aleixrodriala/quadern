@@ -230,6 +230,15 @@ No. ChatGPT is a trademark of OpenAI. Quadern is an independent project.
 </details>
 
 <details>
+<summary><b>Can I record with a headset or another microphone?</b></summary>
+
+Yes. When a headset or another microphone is connected, the recorder shows which one is
+recording; tap it to switch, even in the middle of a note. Quadern uses your choice again
+whenever it's connected. A classic Bluetooth headset records over the same link as a phone call,
+so it sounds like one, and music pauses while it records.
+</details>
+
+<details>
 <summary><b>How is it different from Voicenotes, AudioPen or Google Recorder?</b></summary>
 
 Those are good apps. Voicenotes and AudioPen need their own account and subscription (about

@@ -3,6 +3,7 @@ package io.github.aleixrodriala.quadern.recording
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import io.github.aleixrodriala.quadern.audio.Microphones
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,6 +23,12 @@ class RecordingController(private val context: Context) {
         val levelCount: Int = levels.size,
         /** Another app (e.g. a phone call) took the microphone; we're recording silence. */
         val silenced: Boolean = false,
+        /** The microphone being recorded from, once Android says. */
+        val mic: Microphones.Mic? = null,
+        /** A Bluetooth headset getting ready; [mic] records until it is. */
+        val micConnecting: Microphones.Mic? = null,
+        /** Was picked but couldn't be used, or went away; recording goes on with [mic]. */
+        val micUnavailable: Microphones.Mic? = null,
     )
 
     sealed interface Event {
@@ -69,9 +76,12 @@ class RecordingController(private val context: Context) {
     fun stop() = send(RecordingService.ACTION_STOP)
     fun discard() = send(RecordingService.ACTION_DISCARD)
 
-    private fun send(action: String) {
+    /** Records from now on with the microphone [key] (see Microphones.Mic), and next time too. */
+    fun selectMic(key: String) = send(RecordingService.ACTION_SET_MIC) { putExtra(RecordingService.EXTRA_MIC, key) }
+
+    private fun send(action: String, extras: Intent.() -> Unit = {}) {
         if (_live.value == null) return
-        context.startService(intent(action))
+        context.startService(intent(action).apply(extras))
     }
 
     private fun intent(action: String) = Intent(context, RecordingService::class.java).setAction(action)

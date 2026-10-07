@@ -1,6 +1,6 @@
 # Privacy Policy for Quadern
 
-**Last updated:** September 30, 2026
+**Last updated:** October 7, 2026
 
 This policy applies to **Quadern**, an open-source voice-notes app for Android
 (package ID `io.github.aleixrodriala.quadern`). Quadern is an independent
@@ -76,6 +76,8 @@ the file.
 ## 7. Permissions
 
 - **Microphone**: to record, only after you tap record.
+- **Change audio settings**: to record with a Bluetooth headset you pick, which
+  needs the same link to the headset as a phone call.
 - **Notifications**: the ongoing "Recording" notification with pause and stop,
   and messages such as "sign in again".
 - **Foreground service** (microphone, data sync): to keep recording with the
