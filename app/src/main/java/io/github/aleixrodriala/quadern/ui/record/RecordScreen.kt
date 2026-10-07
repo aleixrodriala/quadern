@@ -388,6 +388,6 @@ private val Microphones.Mic.detail: String
         Microphones.Kind.WIRED -> "Plugged in"
         Microphones.Kind.USB -> "USB"
         Microphones.Kind.BLUETOOTH_LE -> "Bluetooth LE Audio"
-        // The link phone calls use: narrower sound, and music pauses while it's on.
+        // The link phone calls use: narrower sound.
         Microphones.Kind.BLUETOOTH -> "Bluetooth · Sounds like a phone call"
     }

@@ -235,7 +235,8 @@ No. ChatGPT is a trademark of OpenAI. Quadern is an independent project.
 Yes. When a headset or another microphone is connected, the recorder shows which one is
 recording; tap it to switch, even in the middle of a note. Quadern uses your choice again
 whenever it's connected. A classic Bluetooth headset records over the same link as a phone call,
-so it sounds like one, and music pauses while it records.
+so it sounds like one. Whichever microphone you use, music pauses while you record and picks up
+again when you stop.
 </details>
 
 <details>

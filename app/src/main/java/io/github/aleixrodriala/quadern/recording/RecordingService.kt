@@ -5,8 +5,10 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
 import android.os.Build
@@ -54,6 +56,7 @@ class RecordingService : Service() {
     private val sco by lazy { ScoLink(this) }
 
     private var session: Session? = null
+    private var audioFocus: AudioFocusRequest? = null
 
     private class Session(val noteId: String, val engine: RecorderEngine) {
         val levels = LevelBuffer()
@@ -147,6 +150,7 @@ class RecordingService : Service() {
             withContext(NonCancellable) {
                 session = null
                 unregisterAudioWatchers()
+                releaseAudioFocus()
                 sco.disconnect()
                 container.recording.release(id)
                 runCatching { container.repository.finalizeRecording(id, interrupted = true) }
@@ -191,6 +195,7 @@ class RecordingService : Service() {
             .apply { setReferenceCounted(false); acquire(12 * 60 * 60 * 1000L) }
         session = s
         registerAudioWatchers()
+        holdAudioFocus()
         // The microphone picked last time, if it's connected.
         s.chosen = container.settings.current().microphone?.let(container.microphones::find)
         applyMic(s)
@@ -330,6 +335,7 @@ class RecordingService : Service() {
                 val exited = withContext(Dispatchers.IO) { s.engine.stop() }
                 s.wakeLock?.let { if (it.isHeld) it.release() }
                 unregisterAudioWatchers()
+                releaseAudioFocus()
                 if (s.scoFor != null) sco.disconnect()
                 container.recording.publish(null)
                 val repo = container.repository
@@ -404,6 +410,31 @@ class RecordingService : Service() {
         runCatching { audio.unregisterAudioDeviceCallback(deviceCallback) }
     }
 
+    // --- other audio ---
+
+    /**
+     * Music and other audio pause while a note records, through pauses too, and pick up again when it
+     * ends: from the speaker they'd be recorded, and in a headset they'd talk over you.
+     */
+    private fun holdAudioFocus() {
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .build()
+        // Nothing to do when another app takes it back (a call, say): recording goes on regardless.
+        runCatching { (getSystemService(AUDIO_SERVICE) as AudioManager).requestAudioFocus(request) }
+        audioFocus = request
+    }
+
+    private fun releaseAudioFocus() {
+        audioFocus?.let { runCatching { (getSystemService(AUDIO_SERVICE) as AudioManager).abandonAudioFocusRequest(it) } }
+        audioFocus = null
+    }
+
     // --- notification ---
 
     private fun updateNotification(s: Session) {
@@ -459,6 +490,7 @@ class RecordingService : Service() {
             s.tickJob?.cancel()
             s.wakeLock?.let { if (it.isHeld) it.release() }
             unregisterAudioWatchers()
+            releaseAudioFocus()
             if (s.scoFor != null) sco.disconnect()
             container.recording.publish(null)
             // Stop and finalize off the main thread; only touch the file once the recorder exited.

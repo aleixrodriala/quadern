@@ -13,7 +13,8 @@ import androidx.annotation.RequiresApi
 
 /**
  * A classic Bluetooth headset's microphone only works over the link phone calls use (SCO). It takes
- * a second or two to come up, and while it's on the headset is in call mode: no music.
+ * a second or two to come up, and while it's on the headset is in call mode: whatever it plays
+ * sounds like a call.
  *
  * [connect] asks for it and reports when it comes up, or when it goes down: it didn't come up in
  * time, a phone call took it, the headset went away. Reports come on the main thread and stop with
