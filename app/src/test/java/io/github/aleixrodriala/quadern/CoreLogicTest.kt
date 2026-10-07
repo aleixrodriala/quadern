@@ -3,6 +3,7 @@ package io.github.aleixrodriala.quadern
 import io.github.aleixrodriala.quadern.audio.AdtsIndex
 import io.github.aleixrodriala.quadern.audio.AudioSpec
 import io.github.aleixrodriala.quadern.audio.ChunkPlanner
+import io.github.aleixrodriala.quadern.audio.readUpTo
 import io.github.aleixrodriala.quadern.data.NotesRepository
 import io.github.aleixrodriala.quadern.util.formatDuration
 import java.io.File
@@ -113,6 +114,27 @@ class AdtsTest {
         writeFrames(f, listOf(100))
         f.appendBytes(byteArrayOf(0xFF.toByte(), 0xF1.toByte(), 0x4C))
         assertEquals(1, AdtsIndex.scan(f).frameCount)
+    }
+
+    @Test fun readsWholeHeadersFromStreamsThatTrickle() {
+        // Hands out one byte per read, as a stream may; the scan must still get whole headers.
+        val trickle = object : java.io.InputStream() {
+            private val data = byteArrayOf(1, 2, 3, 4, 5)
+            private var at = 0
+            override fun read(): Int = if (at < data.size) data[at++].toInt() else -1
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (len == 0) return 0
+                val c = read()
+                if (c < 0) return -1
+                b[off] = c.toByte()
+                return 1
+            }
+        }
+        val buf = ByteArray(4)
+        assertEquals(4, trickle.readUpTo(buf, 4))
+        assertEquals(listOf<Byte>(1, 2, 3, 4), buf.toList())
+        assertEquals("only what's left at the end", 1, trickle.readUpTo(buf, 4))
+        assertEquals(0, trickle.readUpTo(buf, 4))
     }
 
     @Test fun frameTimeMath() {

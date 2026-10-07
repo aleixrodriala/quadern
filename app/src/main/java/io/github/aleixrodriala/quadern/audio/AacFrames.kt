@@ -9,8 +9,23 @@ import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+
+/**
+ * Reads until [len] bytes are in [buf] or the stream ends, and returns how many it got: what
+ * InputStream.readNBytes does, which Android only has from 13 on.
+ */
+internal fun InputStream.readUpTo(buf: ByteArray, len: Int): Int {
+    var n = 0
+    while (n < len) {
+        val r = read(buf, n, len - n)
+        if (r < 0) break
+        n += r
+    }
+    return n
+}
 
 /** Raw AAC frames (without ADTS headers) addressed by frame index. */
 interface AacFrameSource : Closeable {
@@ -44,7 +59,7 @@ class AdtsIndex private constructor(
             val total = file.length()
             BufferedInputStream(FileInputStream(file), 1 shl 16).use { input ->
                 while (pos + 7 <= total) {
-                    if (input.readNBytes(header, 0, 7) < 7) break
+                    if (input.readUpTo(header, 7) < 7) break
                     val b0 = header[0].toInt() and 0xFF
                     val b1 = header[1].toInt() and 0xFF
                     if (b0 != 0xFF || (b1 and 0xF0) != 0xF0) break
